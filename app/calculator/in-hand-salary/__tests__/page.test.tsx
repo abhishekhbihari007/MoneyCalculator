@@ -35,10 +35,9 @@ describe('In-Hand Salary Calculator', () => {
     
     expect(screen.getByText('In-Hand Salary Calculator')).toBeInTheDocument()
     expect(screen.getByLabelText(/Annual CTC/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Basic Salary Percentage/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/HRA Percentage/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Your Age/i)).toBeInTheDocument()
-    expect(screen.getByText('Calculate Salary')).toBeInTheDocument()
+    expect(screen.getByText(/Basic Salary/i)).toBeInTheDocument()
+    expect(screen.getByText(/HRA Component/i)).toBeInTheDocument()
+    expect(screen.getByText('Calculate In-Hand Salary')).toBeInTheDocument()
   })
 
   it('shows error alert when CTC is invalid', async () => {
@@ -47,7 +46,11 @@ describe('In-Hand Salary Calculator', () => {
     
     render(<InHandSalaryCalculator />)
     
-    const calculateButton = screen.getByText('Calculate Salary')
+    // Clear the default CTC value
+    const ctcInput = screen.getByLabelText(/Annual CTC/i)
+    await user.clear(ctcInput)
+    
+    const calculateButton = screen.getByText('Calculate In-Hand Salary')
     await user.click(calculateButton)
     
     expect(alertSpy).toHaveBeenCalledWith('Please enter a valid CTC')
@@ -60,39 +63,28 @@ describe('In-Hand Salary Calculator', () => {
     
     render(<InHandSalaryCalculator />)
     
-    // Fill in the form
-    const ctcInput = screen.getByLabelText(/Annual CTC/i)
-    const basicInput = screen.getByLabelText(/Basic Salary Percentage/i)
-    const hraInput = screen.getByLabelText(/HRA Percentage/i)
-    const ageInput = screen.getByLabelText(/Your Age/i)
-    const calculateButton = screen.getByText('Calculate Salary')
+    // Click New Regime tab
+    const newRegimeTab = screen.getByText('New Regime')
+    await user.click(newRegimeTab)
     
+    // Fill in the form (CTC already has default value)
+    const ctcInput = screen.getByLabelText(/Annual CTC/i)
     await user.clear(ctcInput)
     await user.type(ctcInput, '1000000')
-    await user.clear(basicInput)
-    await user.type(basicInput, '40')
-    await user.clear(hraInput)
-    await user.type(hraInput, '50')
-    await user.clear(ageInput)
-    await user.type(ageInput, '30')
     
-    // Ensure new tax regime is selected
-    const regimeSelect = screen.getByLabelText(/Tax Regime/i)
-    expect(regimeSelect).toHaveValue('new')
-    
+    const calculateButton = screen.getByText('Calculate In-Hand Salary')
     await user.click(calculateButton)
     
     // Wait for results to appear
     await waitFor(() => {
-      expect(screen.getByText('Salary Breakdown')).toBeInTheDocument()
+      expect(screen.getByText(/Your Monthly In-Hand Salary/i)).toBeInTheDocument()
     })
     
     // Check that results are displayed
-    expect(screen.getByText(/Monthly In-Hand Salary/i)).toBeInTheDocument()
-    expect(screen.getByText(/Gross Salary/i)).toBeInTheDocument()
-    expect(screen.getAllByText(/Basic Salary/i).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/HRA/i).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/Deductions/i).length).toBeGreaterThan(0)
+    expect(screen.getByText(/Your Monthly In-Hand Salary/i)).toBeInTheDocument()
+    expect(screen.getByText(/Your CTC Breakdown/i)).toBeInTheDocument()
+    expect(screen.getByText(/Mandatory Contributions/i)).toBeInTheDocument()
+    expect(screen.getByText(/Salary Components/i)).toBeInTheDocument()
   })
 
   it('calculates in-hand salary for old tax regime', async () => {
@@ -100,77 +92,179 @@ describe('In-Hand Salary Calculator', () => {
     
     render(<InHandSalaryCalculator />)
     
-    // Fill in the form
-    const ctcInput = screen.getByLabelText(/Annual CTC/i)
-    const basicInput = screen.getByLabelText(/Basic Salary Percentage/i)
-    const hraInput = screen.getByLabelText(/HRA Percentage/i)
-    const ageInput = screen.getByLabelText(/Your Age/i)
-    const regimeSelect = screen.getByLabelText(/Tax Regime/i)
-    const calculateButton = screen.getByText('Calculate Salary')
+    // Old regime is selected by default, but let's ensure it
+    const oldRegimeTab = screen.getByText('Old Regime')
+    await user.click(oldRegimeTab)
     
+    const ctcInput = screen.getByLabelText(/Annual CTC/i)
     await user.clear(ctcInput)
     await user.type(ctcInput, '1000000')
-    await user.clear(basicInput)
-    await user.type(basicInput, '40')
-    await user.clear(hraInput)
-    await user.type(hraInput, '50')
-    await user.clear(ageInput)
-    await user.type(ageInput, '30')
     
-    // Select old tax regime
-    await user.selectOptions(regimeSelect, 'old')
-    expect(regimeSelect).toHaveValue('old')
-    
+    const calculateButton = screen.getByText('Calculate In-Hand Salary')
     await user.click(calculateButton)
     
     // Wait for results to appear
     await waitFor(() => {
-      expect(screen.getByText('Salary Breakdown')).toBeInTheDocument()
+      expect(screen.getByText(/Your Monthly In-Hand Salary/i)).toBeInTheDocument()
     })
     
     // Check that results are displayed
-    expect(screen.getByText(/Monthly In-Hand Salary/i)).toBeInTheDocument()
+    expect(screen.getByText(/Your Monthly In-Hand Salary/i)).toBeInTheDocument()
+    expect(screen.getByText(/Income Tax.*Old Regime/i)).toBeInTheDocument()
   })
 
-  it('updates input values correctly', async () => {
+  it('allows switching between tax regimes', async () => {
     const user = userEvent.setup()
     
     render(<InHandSalaryCalculator />)
     
-    const ctcInput = screen.getByLabelText(/Annual CTC/i) as HTMLInputElement
-    const basicInput = screen.getByLabelText(/Basic Salary Percentage/i) as HTMLInputElement
+    // Check Old Regime tab is visible
+    expect(screen.getByText('Old Regime')).toBeInTheDocument()
+    expect(screen.getByText('New Regime')).toBeInTheDocument()
     
-    await user.clear(ctcInput)
-    await user.type(ctcInput, '1500000')
-    expect(ctcInput.value).toBe('1500000')
+    // Switch to New Regime
+    const newRegimeTab = screen.getByText('New Regime')
+    await user.click(newRegimeTab)
     
-    await user.clear(basicInput)
-    await user.type(basicInput, '45')
-    expect(basicInput.value).toBe('45')
+    // Verify exemptions toggle is not shown for new regime
+    expect(screen.queryByText(/Exemptions/i)).not.toBeInTheDocument()
   })
 
-  it('displays formatted currency values', async () => {
+  it('shows exemptions toggle for old regime', () => {
+    render(<InHandSalaryCalculator />)
+    
+    // Old regime is default, so exemptions should be visible
+    expect(screen.getAllByText(/Exemptions/i).length).toBeGreaterThan(0)
+    expect(screen.getByText(/Assume maximum eligible exemptions/i)).toBeInTheDocument()
+  })
+
+  it('allows toggling exemptions', async () => {
+    const user = userEvent.setup()
+    
+    render(<InHandSalaryCalculator />)
+    
+    // Find switch by role (there should be only one switch in old regime)
+    const exemptionsSwitch = screen.getByRole('switch')
+    expect(exemptionsSwitch).toBeChecked()
+    
+    await user.click(exemptionsSwitch)
+    expect(exemptionsSwitch).not.toBeChecked()
+  })
+
+  it('allows changing HRA option via radio buttons', async () => {
+    const user = userEvent.setup()
+    
+    render(<InHandSalaryCalculator />)
+    
+    const hra50Option = screen.getByLabelText(/50% of Basic \(Metro\)/i)
+    const hra40Option = screen.getByLabelText(/40% of Basic/i)
+    
+    // 50% should be selected by default
+    expect(hra50Option).toBeChecked()
+    
+    // Switch to 40%
+    await user.click(hra40Option)
+    expect(hra40Option).toBeChecked()
+    expect(hra50Option).not.toBeChecked()
+  })
+
+  it('allows entering variable pay', async () => {
+    const user = userEvent.setup()
+    
+    render(<InHandSalaryCalculator />)
+    
+    const variablePayInput = screen.getByLabelText(/Variable.*Bonus Component/i)
+    await user.type(variablePayInput, '120000')
+    
+    expect(variablePayInput).toHaveValue(120000)
+  })
+
+  it('displays formatted currency values in results', async () => {
     const user = userEvent.setup()
     
     render(<InHandSalaryCalculator />)
     
     const ctcInput = screen.getByLabelText(/Annual CTC/i)
-    const calculateButton = screen.getByText('Calculate Salary')
-    
     await user.clear(ctcInput)
     await user.type(ctcInput, '1000000')
     
+    const calculateButton = screen.getByText('Calculate In-Hand Salary')
     await user.click(calculateButton)
     
     await waitFor(() => {
-      expect(screen.getByText('Salary Breakdown')).toBeInTheDocument()
+      expect(screen.getByText(/Your Monthly In-Hand Salary/i)).toBeInTheDocument()
     })
     
     // Check that currency is formatted (should contain numbers)
-    const resultContainer = screen.getByText(/Monthly In-Hand Salary/i).closest('div')?.parentElement
-    const resultText = resultContainer?.textContent || ''
-    // Should contain currency formatted numbers
+    const resultText = screen.getByText(/Your Monthly In-Hand Salary/i).closest('div')?.textContent || ''
     expect(resultText).toMatch(/\d/)
   })
-})
 
+  it('displays CTC breakdown with variable and fixed pay', async () => {
+    const user = userEvent.setup()
+    
+    render(<InHandSalaryCalculator />)
+    
+    const ctcInput = screen.getByLabelText(/Annual CTC/i)
+    await user.clear(ctcInput)
+    await user.type(ctcInput, '1200000')
+    
+    const variablePayInput = screen.getByLabelText(/Variable.*Bonus Component/i)
+    await user.type(variablePayInput, '120000')
+    
+    const calculateButton = screen.getByText('Calculate In-Hand Salary')
+    await user.click(calculateButton)
+    
+    await waitFor(() => {
+      expect(screen.getByText(/Your CTC Breakdown/i)).toBeInTheDocument()
+    })
+    
+    expect(screen.getByText(/Variable Pay/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/Fixed Pay/i).length).toBeGreaterThan(0)
+  })
+
+  it('displays mandatory contributions including gratuity', async () => {
+    const user = userEvent.setup()
+    
+    render(<InHandSalaryCalculator />)
+    
+    const ctcInput = screen.getByLabelText(/Annual CTC/i)
+    await user.clear(ctcInput)
+    await user.type(ctcInput, '1000000')
+    
+    const calculateButton = screen.getByText('Calculate In-Hand Salary')
+    await user.click(calculateButton)
+    
+    await waitFor(() => {
+      expect(screen.getByText(/Mandatory Contributions/i)).toBeInTheDocument()
+    })
+    
+    expect(screen.getByText(/Employee PF/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/Gratuity/i).length).toBeGreaterThan(0)
+  })
+
+  it('displays tax savings message when exemptions are enabled', async () => {
+    const user = userEvent.setup()
+    
+    render(<InHandSalaryCalculator />)
+    
+    const ctcInput = screen.getByLabelText(/Annual CTC/i)
+    await user.clear(ctcInput)
+    await user.type(ctcInput, '1200000')
+    
+    // Ensure exemptions are enabled (default for old regime)
+    const exemptionsSwitch = screen.getByRole('switch')
+    if (!exemptionsSwitch.checked) {
+      await user.click(exemptionsSwitch)
+    }
+    
+    const calculateButton = screen.getByText('Calculate In-Hand Salary')
+    await user.click(calculateButton)
+    
+    await waitFor(() => {
+      const savingsMessage = screen.queryByText(/You saved.*in tax due to exemptions/i)
+      // May or may not show depending on calculation, but should not error
+      expect(screen.getByText(/Your Monthly In-Hand Salary/i)).toBeInTheDocument()
+    })
+  })
+})

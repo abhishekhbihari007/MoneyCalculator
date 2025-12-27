@@ -5,6 +5,7 @@ import CalculatorGrid from "@/components/sections/CalculatorGrid";
 import CalculatorPromo from "@/components/sections/CalculatorPromo";
 import DataSimplification from "@/components/sections/DataSimplification";
 import FinancialPersonality from "@/components/sections/FinancialPersonality";
+import WhyYoullLoveOurTools from "@/components/sections/WhyYoullLoveOurTools";
 import dynamic from "next/dynamic";
 
 // Dynamically import heavy components for code splitting
@@ -49,6 +50,9 @@ export default function Home() {
         <section id="calculators">
           <CalculatorGrid />
         </section>
+        
+        {/* Why You'll Love Our Tools Section */}
+        <WhyYoullLoveOurTools />
         
         {/* Interactive Calculator Promo Section */}
         <CalculatorPromo />
