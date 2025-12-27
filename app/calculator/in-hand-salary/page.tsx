@@ -25,6 +25,8 @@ interface SalaryBreakdown {
   esic: number;
   professionalTax: number;
   incomeTax: number;
+  surcharge: number;
+  cess: number;
   totalDeductions: number;
   netSalary: number;
   ctc: number;
@@ -47,6 +49,7 @@ export default function InHandSalaryCalculator() {
   const [taxRegime, setTaxRegime] = useState<"old" | "new">("old");
   const [age, setAge] = useState<string>("30");
   const [exemptionsEnabled, setExemptionsEnabled] = useState<boolean>(true);
+  const [section80CInput, setSection80CInput] = useState<string>("");
   const [result, setResult] = useState<SalaryBreakdown | null>(null);
 
   const calculateSalary = () => {
@@ -67,6 +70,7 @@ export default function InHandSalaryCalculator() {
     const hra = Math.min(basicSalary * hraPercent, basicSalary * 0.5);
     const specialAllowance = fixedPayValue - basicSalary - hra;
 
+    // PF calculation - 12% of basic, capped at ₹1,800/month (₹21,600/year)
     const pfEmployee = Math.min(basicSalary * 0.12, 1800 * 12);
     const pfEmployer = Math.min(basicSalary * 0.12, 1800 * 12);
     const gratuity = basicSalary * 0.0481; // 4.81% of Basic
@@ -79,33 +83,54 @@ export default function InHandSalaryCalculator() {
 
     let taxableIncome = 0;
     let incomeTax = 0;
+    let surcharge = 0;
+    let cess = 0;
     let taxWithoutExemptions = 0;
     let standardDeduction = 0;
     let section80C = 0;
     let section80D = 0;
 
+    // Helper function to calculate surcharge based on total income
+    const calculateSurcharge = (tax: number, totalIncome: number): number => {
+      if (totalIncome > 50000000) {
+        return tax * 0.37; // 37% surcharge for income > 5 crores
+      } else if (totalIncome > 20000000) {
+        return tax * 0.25; // 25% surcharge for income > 2 crores
+      } else if (totalIncome > 10000000) {
+        return tax * 0.15; // 15% surcharge for income > 1 crore
+      } else if (totalIncome > 5000000) {
+        return tax * 0.10; // 10% surcharge for income > 50 lakhs
+      }
+      return 0;
+    };
+
     if (taxRegime === "new") {
       standardDeduction = 75000;
+      // PF is deducted from taxable income
       taxableIncome = Math.max(0, grossSalary - standardDeduction - pfEmployee - professionalTax);
       
       // Calculate tax without exemptions for comparison
       const taxableWithoutExemptions = Math.max(0, grossSalary - 75000 - pfEmployee - professionalTax);
       
+      // New Tax Regime Slabs (FY 2024-25)
+      let taxWithoutExemptionsBase = 0;
       if (taxableWithoutExemptions > 1500000) {
-        taxWithoutExemptions = (taxableWithoutExemptions - 1500000) * 0.30 + 150000;
+        taxWithoutExemptionsBase = (taxableWithoutExemptions - 1500000) * 0.30 + 150000;
       } else if (taxableWithoutExemptions > 1200000) {
-        taxWithoutExemptions = (taxableWithoutExemptions - 1200000) * 0.20 + 90000;
+        taxWithoutExemptionsBase = (taxableWithoutExemptions - 1200000) * 0.20 + 90000;
       } else if (taxableWithoutExemptions > 900000) {
-        taxWithoutExemptions = (taxableWithoutExemptions - 900000) * 0.15 + 45000;
+        taxWithoutExemptionsBase = (taxableWithoutExemptions - 900000) * 0.15 + 45000;
       } else if (taxableWithoutExemptions > 700000) {
-        taxWithoutExemptions = (taxableWithoutExemptions - 700000) * 0.10 + 25000;
+        taxWithoutExemptionsBase = (taxableWithoutExemptions - 700000) * 0.10 + 25000;
       } else if (taxableWithoutExemptions > 500000) {
-        taxWithoutExemptions = (taxableWithoutExemptions - 500000) * 0.05 + 12500;
+        taxWithoutExemptionsBase = (taxableWithoutExemptions - 500000) * 0.05 + 12500;
       } else if (taxableWithoutExemptions > 300000) {
-        taxWithoutExemptions = (taxableWithoutExemptions - 300000) * 0.05;
+        taxWithoutExemptionsBase = (taxableWithoutExemptions - 300000) * 0.05;
       }
-      taxWithoutExemptions = taxWithoutExemptions * 1.04;
+      const surchargeWithoutExemptions = calculateSurcharge(taxWithoutExemptionsBase, grossSalary);
+      taxWithoutExemptions = (taxWithoutExemptionsBase + surchargeWithoutExemptions) * 1.04;
       
+      // Calculate tax for taxable income
       if (taxableIncome > 1500000) {
         incomeTax = (taxableIncome - 1500000) * 0.30 + 150000;
       } else if (taxableIncome > 1200000) {
@@ -123,24 +148,34 @@ export default function InHandSalaryCalculator() {
       standardDeduction = 50000;
       
       if (exemptionsEnabled) {
-        section80C = Math.min(150000, grossSalary * 0.3);
+        // Use user input for 80C if provided, otherwise auto-calculate
+        const section80CInputValue = parseFloat(section80CInput) || 0;
+        if (section80CInputValue > 0) {
+          section80C = Math.min(150000, section80CInputValue); // Cap at ₹1.5 lakhs
+        } else {
+          section80C = Math.min(150000, grossSalary * 0.3);
+        }
         section80D = ageValue < 60 ? 25000 : 50000;
       }
       
+      // PF is deducted from taxable income
       taxableIncome = Math.max(0, grossSalary - standardDeduction - (exemptionsEnabled ? hraExemption : 0) - pfEmployee - professionalTax - section80C - section80D);
       
       // Calculate tax without exemptions for comparison
       const taxableWithoutExemptions = Math.max(0, grossSalary - 50000 - pfEmployee - professionalTax);
       
+      let taxWithoutExemptionsBase = 0;
       if (taxableWithoutExemptions > 1000000) {
-        taxWithoutExemptions = (taxableWithoutExemptions - 1000000) * 0.30 + 112500;
+        taxWithoutExemptionsBase = (taxableWithoutExemptions - 1000000) * 0.30 + 112500;
       } else if (taxableWithoutExemptions > 500000) {
-        taxWithoutExemptions = (taxableWithoutExemptions - 500000) * 0.20 + 12500;
+        taxWithoutExemptionsBase = (taxableWithoutExemptions - 500000) * 0.20 + 12500;
       } else if (taxableWithoutExemptions > 250000) {
-        taxWithoutExemptions = (taxableWithoutExemptions - 250000) * 0.05;
+        taxWithoutExemptionsBase = (taxableWithoutExemptions - 250000) * 0.05;
       }
-      taxWithoutExemptions = taxWithoutExemptions * 1.04;
+      const surchargeWithoutExemptions = calculateSurcharge(taxWithoutExemptionsBase, grossSalary);
+      taxWithoutExemptions = (taxWithoutExemptionsBase + surchargeWithoutExemptions) * 1.04;
       
+      // Old Tax Regime Slabs
       if (taxableIncome > 1000000) {
         incomeTax = (taxableIncome - 1000000) * 0.30 + 112500;
       } else if (taxableIncome > 500000) {
@@ -150,7 +185,12 @@ export default function InHandSalaryCalculator() {
       }
     }
 
-    incomeTax = incomeTax * 1.04; // cess
+    // Calculate surcharge based on gross salary
+    surcharge = calculateSurcharge(incomeTax, grossSalary);
+    
+    // Calculate cess (4% on tax + surcharge)
+    cess = (incomeTax + surcharge) * 0.04;
+    incomeTax = incomeTax + surcharge + cess;
     const taxSavings = exemptionsEnabled && taxRegime === "old" ? taxWithoutExemptions - incomeTax : 0;
 
     const totalDeductions = pfEmployee + esic + professionalTax + incomeTax;
@@ -167,6 +207,8 @@ export default function InHandSalaryCalculator() {
       esic,
       professionalTax,
       incomeTax,
+      surcharge,
+      cess,
       totalDeductions,
       netSalary,
       ctc: ctcValue,
@@ -334,8 +376,46 @@ export default function InHandSalaryCalculator() {
                       <Label>Exemptions</Label>
                       <Switch checked={exemptionsEnabled} onCheckedChange={setExemptionsEnabled} />
                     </div>
-                    <p className="text-xs text-muted-foreground">Assume maximum eligible exemptions</p>
-                    <p className="text-xs text-muted-foreground">80C, 80D, Standard Deduction, HRA (assumed max)</p>
+                    {exemptionsEnabled && (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="section80C">Section 80C (₹) - Max ₹1,50,000</Label>
+                          <Input
+                            id="section80C"
+                            type="number"
+                            placeholder="e.g., 150000"
+                            value={section80CInput}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              const numValue = parseFloat(value);
+                              if (value === "" || (numValue >= 0 && numValue <= 150000)) {
+                                setSection80CInput(value);
+                              } else if (numValue > 150000) {
+                                setSection80CInput("150000");
+                                alert("Maximum limit for Section 80C is ₹1,50,000");
+                              }
+                            }}
+                            max={150000}
+                            min={0}
+                          />
+                          <p className="text-xs text-muted-foreground">PPF, ELSS, Life Insurance, etc. (Leave empty for auto-calculation)</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="age">Age (for 80D calculation)</Label>
+                          <Input
+                            id="age"
+                            type="number"
+                            placeholder="e.g., 30"
+                            value={age}
+                            onChange={(e) => setAge(e.target.value)}
+                            min={1}
+                            max={120}
+                          />
+                          <p className="text-xs text-muted-foreground">80D: ₹25,000 (below 60) or ₹50,000 (60+)</p>
+                        </div>
+                      </>
+                    )}
+                    <p className="text-xs text-muted-foreground">Standard Deduction, HRA (assumed max)</p>
                   </div>
                 )}
 
@@ -420,7 +500,12 @@ export default function InHandSalaryCalculator() {
                     <div className="flex justify-between">
                       <span className="text-sm">Employee PF</span>
                       <span className="font-semibold">{formatCurrency(result.pfEmployee)}</span>
-                      <span className="text-xs text-muted-foreground">(12% of Basic)</span>
+                      <span className="text-xs text-muted-foreground">(12% of Basic, max ₹21,600)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm">Employer PF</span>
+                      <span className="font-semibold">{formatCurrency(result.pfEmployer)}</span>
+                      <span className="text-xs text-muted-foreground">(12% of Basic, max ₹21,600)</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm">Gratuity</span>
@@ -428,8 +513,8 @@ export default function InHandSalaryCalculator() {
                       <span className="text-xs text-muted-foreground">(4.81% of Basic)</span>
                     </div>
                     <div className="pt-2 border-t flex justify-between font-semibold">
-                      <span>Total Mandatory Deductions</span>
-                      <span>{formatCurrency(result.pfEmployee + result.gratuity)}</span>
+                      <span>Total Mandatory Contributions</span>
+                      <span>{formatCurrency(result.pfEmployee + result.pfEmployer + result.gratuity)}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -497,9 +582,23 @@ export default function InHandSalaryCalculator() {
                         </div>
                       </>
                     )}
-                    <div className="pt-2 border-t">
-                      <div className="flex justify-between font-semibold mb-2">
-                        <span>Tax Payable</span>
+                    <div className="pt-2 border-t space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Tax before Surcharge & Cess</span>
+                        <span>{formatCurrency(result.incomeTax - result.surcharge - result.cess)}</span>
+                      </div>
+                      {result.surcharge > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span>Surcharge</span>
+                          <span className="text-orange-600">{formatCurrency(result.surcharge)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-sm">
+                        <span>Health & Education Cess (4%)</span>
+                        <span>{formatCurrency(result.cess)}</span>
+                      </div>
+                      <div className="flex justify-between font-semibold mt-2 pt-2 border-t">
+                        <span>Total Tax Payable</span>
                         <span className="text-destructive">{formatCurrency(result.incomeTax)}</span>
                       </div>
                     </div>
