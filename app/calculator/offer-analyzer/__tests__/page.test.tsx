@@ -44,18 +44,18 @@ describe('Offer Analyzer', () => {
     expect(screen.getByText('Offer 2')).toBeInTheDocument()
   })
 
-  it('shows error alert when no valid offers are entered', async () => {
+  it('shows error when no valid offers are entered', async () => {
     const user = userEvent.setup()
-    const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {})
     
     render(<OfferAnalyzer />)
     
     const compareButton = screen.getByText('Compare Offers')
     await user.click(compareButton)
     
-    expect(alertSpy).toHaveBeenCalledWith('Please enter at least one valid offer')
-    
-    alertSpy.mockRestore()
+    // The component shows error messages in the UI, not alerts
+    await waitFor(() => {
+      expect(screen.getByText(/Please enter at least one valid offer with CTC greater than ₹0/i)).toBeInTheDocument()
+    })
   })
 
   it('compares multiple offers and ranks them', async () => {
@@ -106,9 +106,10 @@ describe('Offer Analyzer', () => {
     })
     
     // Check that offer details are displayed (may appear multiple times)
-    expect(screen.getAllByText(/CTC:/i).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/Estimated In-Hand:/i).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/Total Value:/i).length).toBeGreaterThan(0)
+    // The actual labels are: "Gross Salary:", "Total Tax:", "PF Deduction:", "Monthly Take-Home:", "Total Value (CTC + Variable + Bonus + ESOP):"
+    expect(screen.getAllByText(/Gross Salary:/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Monthly Take-Home:/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Total Value \(CTC \+ Variable \+ Bonus \+ ESOP\):/i).length).toBeGreaterThan(0)
   })
 
   it('updates offer input values correctly', async () => {
@@ -120,19 +121,22 @@ describe('Offer Analyzer', () => {
     
     await user.clear(ctcInputs[0])
     await user.type(ctcInputs[0], '2000000')
-    expect(ctcInputs[0]).toHaveValue(2000000)
+    expect(ctcInputs[0]).toHaveValue('2000000')
     
-    // Find Basic % input by finding the input that has value 40 (default) near the "Basic %" label
-    const allInputs = screen.getAllByRole('spinbutton')
-    // The first Basic % input should be the 2nd input (index 1) in the first offer
-    if (allInputs.length > 1) {
-      const basicInput = allInputs[1] as HTMLInputElement
-      await user.clear(basicInput)
-      await user.type(basicInput, '45')
-      // Check that the value was updated (may need to wait for state update)
-      await waitFor(() => {
-        expect(parseInt(basicInput.value) || 0).toBeGreaterThan(40)
-      })
+    // Find Basic % input by label
+    const basicLabels = screen.getAllByText(/Basic %/i)
+    if (basicLabels.length > 0) {
+      // Find the input near the first Basic % label
+      const basicLabel = basicLabels[0]
+      const basicInput = basicLabel.closest('div')?.querySelector('input') as HTMLInputElement
+      if (basicInput) {
+        await user.clear(basicInput)
+        await user.type(basicInput, '45')
+        // Check that the value was updated (may need to wait for state update)
+        await waitFor(() => {
+          expect(parseInt(basicInput.value) || 0).toBeGreaterThan(40)
+        })
+      }
     }
   })
 
@@ -166,7 +170,7 @@ describe('Offer Analyzer', () => {
     })
     
     // Total value should include variable pay and bonus
-    const resultText = screen.getByText(/Total Value:/i).closest('div')?.textContent || ''
+    const resultText = screen.getByText(/Total Value \(CTC \+ Variable \+ Bonus \+ ESOP\):/i).closest('div')?.textContent || ''
     expect(resultText).toMatch(/\d/)
   })
 
@@ -194,7 +198,7 @@ describe('Offer Analyzer', () => {
     })
     
     // ESOP should be factored into total value
-    expect(screen.getByText(/Total Value:/i)).toBeInTheDocument()
+    expect(screen.getByText(/Total Value \(CTC \+ Variable \+ Bonus \+ ESOP\):/i)).toBeInTheDocument()
   })
 
   it('displays formatted currency values', async () => {
@@ -214,15 +218,17 @@ describe('Offer Analyzer', () => {
       expect(screen.getByText('Comparison Results')).toBeInTheDocument()
     })
     
-    // Check that currency is formatted
-    const resultText = screen.getByText(/CTC:/i).closest('div')?.textContent || ''
+    // Check that currency is formatted - look for Gross Salary or Monthly Take-Home
+    const resultText = screen.getByText(/Gross Salary:/i).closest('div')?.textContent || ''
     expect(resultText).toMatch(/\d/)
   })
 
   it('shows empty state when no results are available', () => {
     render(<OfferAnalyzer />)
     
-    expect(screen.getByText(/Enter offer details and click/i)).toBeInTheDocument()
+    // When no results, the "How It Works" section is shown
+    expect(screen.getByText(/How It Works/i)).toBeInTheDocument()
+    expect(screen.getByText(/Understanding offer comparison/i)).toBeInTheDocument()
   })
 
   it('correctly ranks offers by total value', async () => {

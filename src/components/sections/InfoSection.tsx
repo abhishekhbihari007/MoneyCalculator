@@ -1,7 +1,32 @@
 "use client";
 
 import { useState } from "react";
-import { CreditCard, Shield, Landmark, ChevronDown, ChevronUp, Lightbulb } from "lucide-react";
+import { CreditCard, Shield, Landmark, ChevronDown, ChevronUp, Lightbulb, CheckCircle2 } from "lucide-react";
+
+// Validation FAQ section
+const validationFaq = {
+  id: "validation",
+  title: "Calculation Validation & Accuracy",
+  description: "How we ensure accurate and compliant calculations",
+  faqs: [
+    {
+      question: "How are inputs validated?",
+      answer: "All our calculators use strict validation rules based on Indian tax laws, statutory financial limits, and logical constraints. Inputs that violate legal or logical limits are blocked immediately. Calculations never run on invalid data. No values are auto-corrected silently. Clear error messages explain what needs to be fixed. This ensures results are accurate, transparent, and compliant with Indian financial regulations."
+    },
+    {
+      question: "What happens if I enter invalid values?",
+      answer: "If you enter values that violate legal or logical limits (for example, deductions exceeding income, or negative amounts where positive is required), the calculator will immediately show a clear error message explaining what's wrong. The calculation will not proceed, and any previous results will be cleared. This prevents showing legally impossible or incorrect results."
+    },
+    {
+      question: "Are values automatically corrected?",
+      answer: "No. We never silently auto-correct your inputs. If a value is invalid, you'll see a clear error message explaining the issue and what needs to be fixed. This ensures transparency and gives you full control over your inputs."
+    },
+    {
+      question: "How do you ensure compliance with Indian laws?",
+      answer: "All our calculators are built to strictly follow Indian financial regulations including the Income Tax Act, EPF Act, Payment of Gratuity Act, PFRDA norms, and RBI banking regulations. We enforce statutory limits (like EPF wage caps, gratuity limits, tax deduction limits) and use official formulas and slab rates as per current regulations."
+    }
+  ]
+};
 
 const sections = [
   {
@@ -91,6 +116,39 @@ const sections = [
       },
     ],
   },
+  {
+    id: "validation",
+    icon: CheckCircle2,
+    title: "Calculation Validation & Accuracy",
+    subtitle: "How we ensure accurate and compliant calculations",
+    color: "from-accent/20 to-accent/5",
+    iconBg: "bg-accent/20 text-accent",
+    content: "All our calculators use strict validation rules based on Indian tax laws, statutory financial limits, and logical constraints. Inputs that violate legal or logical limits are blocked immediately. Calculations never run on invalid data. No values are auto-corrected silently. Clear error messages explain what needs to be fixed. This ensures results are accurate, transparent, and compliant with Indian financial regulations.",
+    tips: [
+      "We validate all inputs against Indian tax laws and statutory limits before any calculation",
+      "Invalid values (like deductions exceeding income) are immediately blocked with clear error messages",
+      "No silent auto-corrections—you'll always see what's wrong and how to fix it",
+      "All calculations follow official formulas and rates as per current Indian regulations"
+    ],
+    faqs: [
+      {
+        question: "How are inputs validated?",
+        answer: "All our calculators use strict validation rules based on Indian tax laws, statutory financial limits, and logical constraints. Inputs that violate legal or logical limits are blocked immediately. Calculations never run on invalid data. No values are auto-corrected silently. Clear error messages explain what needs to be fixed. This ensures results are accurate, transparent, and compliant with Indian financial regulations."
+      },
+      {
+        question: "What happens if I enter invalid values?",
+        answer: "If you enter values that violate legal or logical limits (for example, deductions exceeding income, or negative amounts where positive is required), the calculator will immediately show a clear error message explaining what's wrong. The calculation will not proceed, and any previous results will be cleared. This prevents showing legally impossible or incorrect results."
+      },
+      {
+        question: "Are values automatically corrected?",
+        answer: "No. We never silently auto-correct your inputs. If a value is invalid, you'll see a clear error message explaining the issue and what needs to be fixed. This ensures transparency and gives you full control over your inputs."
+      },
+      {
+        question: "How do you ensure compliance with Indian laws?",
+        answer: "All our calculators are built to strictly follow Indian financial regulations including the Income Tax Act, EPF Act, Payment of Gratuity Act, PFRDA norms, and RBI banking regulations. We enforce statutory limits (like EPF wage caps, gratuity limits, tax deduction limits) and use official formulas and slab rates as per current regulations."
+      }
+    ],
+  },
 ];
 
 const InfoSection = () => {
@@ -130,11 +188,11 @@ const InfoSection = () => {
         </div>
 
         {/* Info Cards - Grid Layout */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {sections.map((section, index) => (
             <div
               key={section.id}
-              className={`rounded-xl border border-border bg-gradient-to-br ${section.color} p-4 md:p-5 animate-fade-up transition-all hover:shadow-md`}
+              className={`rounded-xl border border-border bg-gradient-to-br ${section.color} p-4 md:p-5 animate-fade-up transition-all hover:shadow-md flex flex-col h-full`}
               style={{ animationDelay: `${index * 0.1}s` }}
             >
               {/* Header */}
@@ -143,10 +201,10 @@ const InfoSection = () => {
                   <section.icon className="h-5 w-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-heading text-base md:text-lg font-bold text-foreground mb-1">
+                  <h3 className="font-heading text-sm md:text-base font-bold text-foreground mb-1 leading-tight">
                     {section.title}
                   </h3>
-                  <p className="text-xs text-muted-foreground">{section.subtitle}</p>
+                  <p className="text-xs text-muted-foreground leading-tight">{section.subtitle}</p>
                 </div>
               </div>
 

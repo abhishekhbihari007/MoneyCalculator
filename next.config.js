@@ -26,7 +26,11 @@ const nextConfig = {
   // Experimental features for better performance
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons', 'three'],
+    // Enable partial prerendering for better performance
+    ppr: false,
   },
+  // Performance optimizations
+  productionBrowserSourceMaps: false,
   // Webpack optimizations for Three.js
   webpack: (config, { isServer }) => {
     if (!isServer) {

@@ -15,16 +15,16 @@ const footerLinks = {
     { name: "Gratuity Estimator", href: "/calculator/gratuity" },
   ],
   resources: [
-    { name: "Blog", href: "#blog" },
-    { name: "Knowledge Hub", href: "#knowledge" },
+    { name: "Blog", href: "/blog" },
+    { name: "FAQ", href: "/faq" },
     { name: "Credit Score", href: "/creditscore" },
     { name: "Insurance", href: "/insurance" },
   ],
   company: [
-    { name: "About Us", href: "#" },
-    { name: "Contact", href: "#" },
-    { name: "Privacy Policy", href: "#" },
-    { name: "Terms of Use", href: "#" },
+    { name: "About Us", href: "/about" },
+    { name: "Contact", href: "/contact" },
+    { name: "Privacy Policy", href: "/privacy" },
+    { name: "Terms of Service", href: "/terms" },
   ],
 };
 

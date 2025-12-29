@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Calculator, ArrowLeft, DollarSign, Info, Lightbulb, CheckCircle2 } from "lucide-react";
+import { Calculator, ArrowLeft, DollarSign, Info, Lightbulb, CheckCircle2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,14 +51,82 @@ export default function InHandSalaryCalculator() {
   const [exemptionsEnabled, setExemptionsEnabled] = useState<boolean>(true);
   const [section80CInput, setSection80CInput] = useState<string>("");
   const [result, setResult] = useState<SalaryBreakdown | null>(null);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  // Helper function to handle number-only input
+  const handleNumberInput = (value: string, setter: (value: string) => void, fieldName: string, isRequired: boolean = false, min?: number, max?: number) => {
+    // Allow empty string for optional fields
+    if (value === "") {
+      if (isRequired) {
+        setErrors(prev => ({ ...prev, [fieldName]: "This field is required" }));
+      } else {
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors[fieldName];
+          return newErrors;
+        });
+      }
+      setter("");
+      return;
+    }
+
+    // Only allow numbers and decimal point
+    if (!/^\d*\.?\d*$/.test(value)) {
+      return;
+    }
+
+    const numValue = parseFloat(value);
+    
+    if (isNaN(numValue)) {
+      return;
+    }
+
+    if (min !== undefined && numValue < min) {
+      setErrors(prev => ({ ...prev, [fieldName]: `Value must be at least ${min}` }));
+    } else if (max !== undefined && numValue > max) {
+      setErrors(prev => ({ ...prev, [fieldName]: `Value must be at most ${max}` }));
+    } else {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[fieldName];
+        return newErrors;
+      });
+    }
+
+    setter(value);
+  };
 
   const calculateSalary = () => {
-    const ctcValue = parseFloat(ctc);
-    const variablePayValue = parseFloat(variablePay) || 0;
+    // Clear previous errors
+    setErrors({});
+    setResult(null);
+
+    const ctcValue = parseFloat(ctc) || 0;
+    const variablePayValue = parseFloat(variablePay || "0") || 0;
     const fixedPayValue = ctcValue - variablePayValue;
     
-    if (!ctcValue || ctcValue <= 0) {
-      alert("Please enter a valid CTC");
+    // STRICT VALIDATION - Policy Guardrails
+    // Rule 1: CTC must be positive
+    if (!ctc || ctcValue <= 0 || isNaN(ctcValue)) {
+      setErrors(prev => ({ ...prev, ctc: "CTC must be greater than ₹0. Please enter a valid amount." }));
+      return;
+    }
+
+    // Rule 2: Variable pay cannot be negative
+    if (variablePayValue < 0) {
+      setErrors(prev => ({ ...prev, variablePay: "Variable pay cannot be negative." }));
+      return;
+    }
+
+    // Rule 3: Variable pay cannot exceed CTC
+    if (variablePayValue > ctcValue) {
+      setErrors(prev => ({ ...prev, variablePay: "Variable pay cannot exceed CTC. Please revise the amount." }));
+      return;
+    }
+
+    // Rule 4: Fixed pay must be positive
+    if (fixedPayValue <= 0) {
+      setErrors(prev => ({ ...prev, ctc: "Fixed pay (CTC - Variable Pay) must be greater than ₹0." }));
       return;
     }
 
@@ -70,12 +138,31 @@ export default function InHandSalaryCalculator() {
     const hra = Math.min(basicSalary * hraPercent, basicSalary * 0.5);
     const specialAllowance = fixedPayValue - basicSalary - hra;
 
-    // PF calculation - 12% of basic, capped at ₹1,800/month (₹21,600/year)
+    // Rule 5: Validate salary components don't exceed fixed pay
+    if (basicSalary + hra + specialAllowance > fixedPayValue + 1) { // +1 for floating point tolerance
+      setErrors(prev => ({ ...prev, ctc: "Salary components (Basic + HRA + Special Allowance) exceed fixed pay. Please adjust the percentages." }));
+      return;
+    }
+
+    // Rule 6: Special allowance cannot be negative
+    if (specialAllowance < 0) {
+      setErrors(prev => ({ ...prev, ctc: "Special allowance is negative. Please reduce Basic or HRA percentage." }));
+      return;
+    }
+
+    // PF calculation - 12% of basic, capped at ₹15,000 basic salary
+    // Employee & Employer PF: 12% each, max ₹1,800/month (₹21,600/year) per person
     const pfEmployee = Math.min(basicSalary * 0.12, 1800 * 12);
     const pfEmployer = Math.min(basicSalary * 0.12, 1800 * 12);
     const gratuity = basicSalary * 0.0481; // 4.81% of Basic
 
     const grossSalary = basicSalary + hra + specialAllowance;
+
+    // Rule 7: Validate gross salary is reasonable (should equal fixed pay approximately)
+    if (Math.abs(grossSalary - fixedPayValue) > 100) {
+      setErrors(prev => ({ ...prev, ctc: "Salary components do not match fixed pay. Please check the calculation." }));
+      return;
+    }
     const esic = grossSalary <= 21000 * 12 ? grossSalary * 0.0075 : 0;
     const professionalTax = 200 * 12;
 
@@ -113,26 +200,40 @@ export default function InHandSalaryCalculator() {
       const taxableWithoutExemptions = Math.max(0, grossSalary - 75000 - pfEmployee - professionalTax);
       
       // New Tax Regime Slabs (FY 2024-25)
+      // As per latest rules: Income up to ₹12,75,000 (including ₹75,000 standard deduction) should be tax-free
+      // This means if grossSalary <= ₹12,75,000, taxable income after standard deduction will be <= ₹12,00,000
+      // And taxable income <= ₹12,00,000 should have no tax
+      
       let taxWithoutExemptionsBase = 0;
-      if (taxableWithoutExemptions > 1500000) {
-        taxWithoutExemptionsBase = (taxableWithoutExemptions - 1500000) * 0.30 + 150000;
-      } else if (taxableWithoutExemptions > 1200000) {
-        taxWithoutExemptionsBase = (taxableWithoutExemptions - 1200000) * 0.20 + 90000;
-      } else if (taxableWithoutExemptions > 900000) {
-        taxWithoutExemptionsBase = (taxableWithoutExemptions - 900000) * 0.15 + 45000;
-      } else if (taxableWithoutExemptions > 700000) {
-        taxWithoutExemptionsBase = (taxableWithoutExemptions - 700000) * 0.10 + 25000;
-      } else if (taxableWithoutExemptions > 500000) {
-        taxWithoutExemptionsBase = (taxableWithoutExemptions - 500000) * 0.05 + 12500;
-      } else if (taxableWithoutExemptions > 300000) {
-        taxWithoutExemptionsBase = (taxableWithoutExemptions - 300000) * 0.05;
+      // No tax if taxable income <= ₹12,00,000
+      if (taxableWithoutExemptions > 1200000) {
+        if (taxableWithoutExemptions > 2000000) {
+          taxWithoutExemptionsBase = (taxableWithoutExemptions - 2000000) * 0.30 + 275000;
+        } else if (taxableWithoutExemptions > 1500000) {
+          taxWithoutExemptionsBase = (taxableWithoutExemptions - 1500000) * 0.25 + 150000;
+        } else if (taxableWithoutExemptions > 1200000) {
+          taxWithoutExemptionsBase = (taxableWithoutExemptions - 1200000) * 0.20 + 90000;
+        } else if (taxableWithoutExemptions > 900000) {
+          taxWithoutExemptionsBase = (taxableWithoutExemptions - 900000) * 0.15 + 45000;
+        } else if (taxableWithoutExemptions > 700000) {
+          taxWithoutExemptionsBase = (taxableWithoutExemptions - 700000) * 0.10 + 25000;
+        } else if (taxableWithoutExemptions > 500000) {
+          taxWithoutExemptionsBase = (taxableWithoutExemptions - 500000) * 0.05 + 12500;
+        } else if (taxableWithoutExemptions > 300000) {
+          taxWithoutExemptionsBase = (taxableWithoutExemptions - 300000) * 0.05;
+        }
       }
       const surchargeWithoutExemptions = calculateSurcharge(taxWithoutExemptionsBase, grossSalary);
       taxWithoutExemptions = (taxWithoutExemptionsBase + surchargeWithoutExemptions) * 1.04;
       
       // Calculate tax for taxable income
-      if (taxableIncome > 1500000) {
-        incomeTax = (taxableIncome - 1500000) * 0.30 + 150000;
+      // No tax if taxable income <= ₹12,00,000 (which corresponds to grossSalary <= ₹12,75,000 with standard deduction)
+      if (taxableIncome <= 1200000) {
+        incomeTax = 0;
+      } else if (taxableIncome > 2000000) {
+        incomeTax = (taxableIncome - 2000000) * 0.30 + 275000; // 150000 (from previous slabs) + 125000 (15-20L @ 25%)
+      } else if (taxableIncome > 1500000) {
+        incomeTax = (taxableIncome - 1500000) * 0.25 + 150000;
       } else if (taxableIncome > 1200000) {
         incomeTax = (taxableIncome - 1200000) * 0.20 + 90000;
       } else if (taxableIncome > 900000) {
@@ -151,7 +252,7 @@ export default function InHandSalaryCalculator() {
         // Use user input for 80C if provided, otherwise auto-calculate
         const section80CInputValue = parseFloat(section80CInput) || 0;
         if (section80CInputValue > 0) {
-          section80C = Math.min(150000, section80CInputValue); // Cap at ₹1.5 lakhs
+          section80C = Math.min(150000, section80CInputValue); // Cap at ₹1.5 lakhs for Old Regime
         } else {
           section80C = Math.min(150000, grossSalary * 0.3);
         }
@@ -194,7 +295,7 @@ export default function InHandSalaryCalculator() {
     const taxSavings = exemptionsEnabled && taxRegime === "old" ? taxWithoutExemptions - incomeTax : 0;
 
     const totalDeductions = pfEmployee + esic + professionalTax + incomeTax;
-    const netSalary = grossSalary - totalDeductions;
+    const netSalary = Math.max(0, grossSalary - totalDeductions);
 
     setResult({
       grossSalary,
@@ -225,17 +326,20 @@ export default function InHandSalaryCalculator() {
   };
 
   const formatCurrency = (amount: number) => {
+    if (isNaN(amount) || !isFinite(amount) || amount < 0) {
+      return "₹0";
+    }
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency: "INR",
       maximumFractionDigits: 0,
-    }).format(amount);
+    }).format(Math.max(0, amount));
   };
 
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1 bg-gradient-to-b from-background to-muted/20 pt-16">
+      <main className="flex-1 bg-gradient-to-b from-background to-muted/20">
         <div className="container py-8 md:py-12">
           <Link href="/" className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="h-4 w-4" />
@@ -286,12 +390,15 @@ export default function InHandSalaryCalculator() {
                   </div>
                   <Input
                     id="ctc"
-                    type="number"
+                    type="text"
                     placeholder="e.g., 1200000"
                     value={ctc}
-                    onChange={(e) => setCtc(e.target.value)}
+                    onChange={(e) => handleNumberInput(e.target.value, setCtc, "ctc", true, 1)}
                     className="text-lg"
                   />
+                  {errors.ctc && (
+                    <p className="text-xs text-destructive">{errors.ctc}</p>
+                  )}
                   {ctc && (
                     <div className="flex items-baseline gap-2">
                       <p className="text-2xl font-bold">{formatCurrency(parseFloat(ctc) || 0)}</p>
@@ -306,11 +413,14 @@ export default function InHandSalaryCalculator() {
                   <div className="flex gap-2">
                     <Input
                       id="variable"
-                      type="number"
+                      type="text"
                       placeholder="Amount"
                       value={variablePay}
-                      onChange={(e) => setVariablePay(e.target.value)}
+                      onChange={(e) => handleNumberInput(e.target.value, setVariablePay, "variablePay", false, 0)}
                     />
+                  {errors.variablePay && (
+                    <p className="text-xs text-destructive">{errors.variablePay}</p>
+                  )}
                     <select className="flex h-10 w-32 rounded-md border border-input bg-background px-3 py-2 text-sm">
                       <option>Optional</option>
                     </select>
@@ -379,38 +489,31 @@ export default function InHandSalaryCalculator() {
                     {exemptionsEnabled && (
                       <>
                         <div className="space-y-2">
-                          <Label htmlFor="section80C">Section 80C (₹) - Max ₹1,50,000</Label>
+                          <Label htmlFor="section80C">Section 80C (₹) - Max ₹1,50,000 (Old Regime Only)</Label>
                           <Input
                             id="section80C"
-                            type="number"
+                            type="text"
                             placeholder="e.g., 150000"
                             value={section80CInput}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              const numValue = parseFloat(value);
-                              if (value === "" || (numValue >= 0 && numValue <= 150000)) {
-                                setSection80CInput(value);
-                              } else if (numValue > 150000) {
-                                setSection80CInput("150000");
-                                alert("Maximum limit for Section 80C is ₹1,50,000");
-                              }
-                            }}
-                            max={150000}
-                            min={0}
+                            onChange={(e) => handleNumberInput(e.target.value, setSection80CInput, "section80C", false, 0, 150000)}
                           />
-                          <p className="text-xs text-muted-foreground">PPF, ELSS, Life Insurance, etc. (Leave empty for auto-calculation)</p>
+                          {errors.section80C && (
+                            <p className="text-xs text-destructive">{errors.section80C}</p>
+                          )}
+                          <p className="text-xs text-muted-foreground">PPF, ELSS, Life Insurance, etc. (Leave empty for auto-calculation). Maximum ₹1,50,000 for Old Regime.</p>
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="age">Age (for 80D calculation)</Label>
                           <Input
                             id="age"
-                            type="number"
+                            type="text"
                             placeholder="e.g., 30"
                             value={age}
-                            onChange={(e) => setAge(e.target.value)}
-                            min={1}
-                            max={120}
+                            onChange={(e) => handleNumberInput(e.target.value, setAge, "age", false, 1, 120)}
                           />
+                          {errors.age && (
+                            <p className="text-xs text-destructive">{errors.age}</p>
+                          )}
                           <p className="text-xs text-muted-foreground">80D: ₹25,000 (below 60) or ₹50,000 (60+)</p>
                         </div>
                       </>
@@ -419,15 +522,178 @@ export default function InHandSalaryCalculator() {
                   </div>
                 )}
 
-                <Button onClick={calculateSalary} className="w-full" size="lg">
-                  <Calculator className="h-5 w-5 mr-2" />
-                  Calculate In-Hand Salary
-                </Button>
+                <div className="flex gap-3">
+                  <Button onClick={calculateSalary} className={ctc !== "1200000" || variablePay || basicPercentage[0] !== 40 || hraOption !== "50" || age !== "30" || section80CInput ? "flex-1" : "w-full"} size="lg">
+                    <Calculator className="h-5 w-5 mr-2" />
+                    Calculate In-Hand Salary
+                  </Button>
+                  {(ctc !== "1200000" || variablePay || basicPercentage[0] !== 40 || hraOption !== "50" || age !== "30" || section80CInput) && (
+                    <Button 
+                      onClick={() => {
+                        setCtc("1200000");
+                        setVariablePay("");
+                        setBasicPercentage([40]);
+                        setHraOption("50");
+                        setTaxRegime("old");
+                        setAge("30");
+                        setExemptionsEnabled(true);
+                        setSection80CInput("");
+                        setResult(null);
+                        setErrors({});
+                      }}
+                      variant="outline"
+                      size="lg"
+                      className="flex items-center gap-2"
+                    >
+                      <X className="h-5 w-5" />
+                      Clear
+                    </Button>
+                  )}
+                </div>
                 <p className="text-xs text-center text-muted-foreground">Estimates only · No login required</p>
               </CardContent>
             </Card>
 
-            {result && (
+            {!result ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Info className="h-5 w-5" />
+                    How It Works
+                  </CardTitle>
+                  <CardDescription>Understanding your salary calculation</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="p-4 bg-primary/5 rounded-lg border border-primary/10">
+                    <h3 className="font-semibold mb-3 text-base text-foreground">Understanding Your Salary Structure</h3>
+                    <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
+                      Your Cost to Company (CTC) is broken down into various components. Understanding this breakdown 
+                      helps you see exactly how much you take home after all deductions.
+                    </p>
+                    
+                    <h4 className="font-semibold mb-2 text-sm text-foreground mt-4">Salary Components Breakdown:</h4>
+                    <ol className="space-y-3 text-sm text-muted-foreground list-decimal list-inside">
+                      <li className="leading-relaxed">
+                        <strong className="text-foreground">Basic Salary:</strong> Usually 40-50% of CTC. This forms the base for 
+                        PF, gratuity, and other calculations. Higher basic means higher PF contribution and better retirement benefits.
+                      </li>
+                      <li className="leading-relaxed">
+                        <strong className="text-foreground">House Rent Allowance (HRA):</strong> Typically 40-50% of Basic salary. 
+                        HRA is partially tax-exempt based on actual rent paid, making it a tax-efficient component.
+                      </li>
+                      <li className="leading-relaxed">
+                        <strong className="text-foreground">Special Allowance:</strong> The remaining amount after Basic and HRA. 
+                        This is fully taxable and forms part of your gross salary.
+                      </li>
+                      <li className="leading-relaxed">
+                        <strong className="text-foreground">Variable Pay:</strong> Performance-based component that may vary. 
+                        This is separate from fixed pay and is also fully taxable.
+                      </li>
+                      <li className="leading-relaxed">
+                        <strong className="text-foreground">Gross Salary:</strong> Basic + HRA + Special Allowance (Fixed Pay portion)
+                      </li>
+                    </ol>
+                  </div>
+
+                  <div className="p-4 bg-accent/5 rounded-lg border border-accent/10">
+                    <h3 className="font-semibold mb-3 text-base text-foreground">Mandatory Deductions</h3>
+                    <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
+                      These deductions are mandatory as per Indian labor laws and tax regulations. They reduce your 
+                      gross salary to arrive at your net take-home amount.
+                    </p>
+                    
+                    <h4 className="font-semibold mb-2 text-sm text-foreground mt-4">Deduction Details:</h4>
+                    <ol className="space-y-3 text-sm text-muted-foreground list-decimal list-inside">
+                      <li className="leading-relaxed">
+                        <strong className="text-foreground">Employee Provident Fund (EPF):</strong> 
+                        <ul className="list-disc list-inside ml-4 mt-2 space-y-1">
+                          <li>12% of Basic Salary (mandatory contribution)</li>
+                          <li>Maximum ₹1,800/month (capped at ₹15,000 basic salary as per EPFO rules)</li>
+                          <li>This is your retirement savings and earns tax-free interest</li>
+                        </ul>
+                      </li>
+                      <li className="leading-relaxed">
+                        <strong className="text-foreground">Employee State Insurance (ESIC):</strong> 
+                        <ul className="list-disc list-inside ml-4 mt-2 space-y-1">
+                          <li>0.75% of Gross Salary</li>
+                          <li>Applicable only if gross salary ≤ ₹21,000/month</li>
+                          <li>Provides health insurance coverage</li>
+                        </ul>
+                      </li>
+                      <li className="leading-relaxed">
+                        <strong className="text-foreground">Professional Tax:</strong> 
+                        <ul className="list-disc list-inside ml-4 mt-2 space-y-1">
+                          <li>₹200/month (standard rate, varies by state)</li>
+                          <li>Annual deduction: ₹2,400</li>
+                          <li>State-specific tax on employment</li>
+                        </ul>
+                      </li>
+                      <li className="leading-relaxed">
+                        <strong className="text-foreground">Income Tax:</strong> Calculated based on your selected tax regime 
+                        (Old or New) using applicable slab rates, surcharge, and cess.
+                      </li>
+                    </ol>
+                  </div>
+
+                  <div className="p-4 bg-success/5 rounded-lg border border-success/10">
+                    <h3 className="font-semibold mb-3 text-base text-foreground">Tax Calculation - {taxRegime === "old" ? "Old" : "New"} Regime</h3>
+                    {taxRegime === "old" ? (
+                      <div className="space-y-3 text-sm text-muted-foreground">
+                        <p className="leading-relaxed">
+                          <strong className="text-foreground">Old Regime Benefits:</strong>
+                        </p>
+                        <ul className="list-disc list-inside ml-4 space-y-1">
+                          <li>Standard deduction: ₹50,000</li>
+                          <li>Section 80C: Up to ₹1,50,000 (PPF, ELSS, Life Insurance, etc.)</li>
+                          <li>Section 80D: Health insurance premiums (₹25,000/₹50,000 based on age)</li>
+                          <li>HRA exemption based on actual rent paid</li>
+                          <li>Home loan interest deduction (Section 24(b))</li>
+                        </ul>
+                        <p className="leading-relaxed mt-3">
+                          Tax is calculated using progressive slab rates: 0-₹2.5L (0%), ₹2.5L-₹5L (5%), 
+                          ₹5L-₹10L (20%), Above ₹10L (30%), plus 4% Health & Education Cess.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 text-sm text-muted-foreground">
+                        <p className="leading-relaxed">
+                          <strong className="text-foreground">New Regime Benefits:</strong>
+                        </p>
+                        <ul className="list-disc list-inside ml-4 space-y-1">
+                          <li>Higher standard deduction: ₹75,000</li>
+                          <li>Simplified tax structure with lower rates for income up to ₹15L</li>
+                          <li>No need to maintain investment proofs</li>
+                          <li>No deductions allowed (except standard deduction)</li>
+                        </ul>
+                        <p className="leading-relaxed mt-3">
+                          Tax is calculated using new slab rates: 0-₹3L (0%), ₹3L-₹7L (5%), ₹7L-₹10L (10%), 
+                          ₹10L-₹12L (15%), ₹12L-₹15L (20%), ₹15L-₹20L (25%), Above ₹20L (30%), plus 4% cess.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-4 bg-muted/50 rounded-lg border">
+                    <h4 className="font-semibold mb-2 text-sm text-foreground">Final Calculation</h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      <strong className="text-foreground">In-Hand Salary = Gross Salary - (EPF + ESIC + Professional Tax + Income Tax)</strong>
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      This is your net take-home amount that gets credited to your bank account every month.
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
+                    <h4 className="font-semibold mb-2 text-sm text-foreground">💡 Pro Tip</h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Switch between Old and New tax regimes using the tabs above to see which regime gives you 
+                      better take-home salary. Remember, you can choose your preferred regime each financial year 
+                      when filing your income tax return.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
               <div className="space-y-6">
                 {/* Monthly In-Hand Salary - Main Display */}
                 <Card className="border-primary/20">

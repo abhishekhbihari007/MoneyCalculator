@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Award, ArrowLeft, DollarSign } from "lucide-react";
+import { Award, ArrowLeft, DollarSign, Info, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,41 +17,97 @@ export default function GratuityCalculator() {
     gratuity: number;
     months: number;
   } | null>(null);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  // Helper function to handle number-only input
+  const handleNumberInput = (value: string, setter: (value: string) => void, fieldName: string, isRequired: boolean = false, min?: number) => {
+    if (value === "") {
+      if (isRequired) {
+        setErrors(prev => ({ ...prev, [fieldName]: "This field is required" }));
+      } else {
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors[fieldName];
+          return newErrors;
+        });
+      }
+      setter("");
+      return;
+    }
+    // Only allow numbers and decimal point (no negative sign)
+    if (!/^\d*\.?\d*$/.test(value)) {
+      return;
+    }
+    const numValue = parseFloat(value);
+    if (isNaN(numValue)) {
+      return;
+    }
+    if (min !== undefined && numValue < min) {
+      setErrors(prev => ({ ...prev, [fieldName]: `Value must be at least ${min}` }));
+    } else {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[fieldName];
+        return newErrors;
+      });
+    }
+    setter(value);
+  };
 
   const calculateGratuity = () => {
-    const salary = parseFloat(lastDrawnSalary);
-    const years = parseFloat(yearsOfService);
+    setErrors({});
+    setResult(null);
+    const salary = parseFloat(lastDrawnSalary) || 0;
+    const years = parseFloat(yearsOfService) || 0;
 
-    if (!salary || !years || salary <= 0 || years < 0) {
-      alert("Please enter valid values");
+    // STRICT VALIDATION - Payment of Gratuity Act Guardrails
+    // Rule 1: Last drawn salary must be positive
+    if (!lastDrawnSalary || salary <= 0 || isNaN(salary)) {
+      setErrors(prev => ({ ...prev, lastDrawnSalary: "Last drawn basic salary must be greater than ₹0 as per Payment of Gratuity Act, 1972." }));
       return;
     }
 
-    if (years >= 5) {
-      const gratuity = (salary / 26) * 15 * years;
-      const finalGratuity = Math.min(gratuity, 2000000);
-      setResult({
-        gratuity: finalGratuity,
-        months: years * 12,
-      });
-    } else {
-      alert("Gratuity is payable only after 5 years of continuous service");
-      setResult(null);
+    // Rule 2: Years of service cannot be negative
+    if (!yearsOfService || years < 0 || isNaN(years)) {
+      setErrors(prev => ({ ...prev, yearsOfService: "Years of service cannot be negative. Please enter a valid number." }));
+      return;
     }
+
+    // Rule 3: Minimum 5 years eligibility (Payment of Gratuity Act requirement)
+    if (years < 5) {
+      setErrors(prev => ({ ...prev, yearsOfService: "Gratuity is payable only after completing 5 years of continuous service as per Payment of Gratuity Act, 1972." }));
+      return;
+    }
+
+    // Rule 4: Years of service must be reasonable (max 50 years)
+    if (years > 50) {
+      setErrors(prev => ({ ...prev, yearsOfService: "Years of service cannot exceed 50 years. Please enter a valid number." }));
+      return;
+    }
+
+    const gratuity = (salary / 26) * 15 * years;
+    const finalGratuity = Math.min(gratuity, 2000000);
+    setResult({
+      gratuity: finalGratuity,
+      months: years * 12,
+    });
   };
 
   const formatCurrency = (amount: number) => {
+    if (isNaN(amount) || !isFinite(amount) || amount < 0) {
+      return "₹0";
+    }
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency: "INR",
       maximumFractionDigits: 0,
-    }).format(amount);
+    }).format(Math.max(0, amount));
   };
 
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1 bg-gradient-to-b from-background to-muted/20 pt-16">
+      <main className="flex-1 bg-gradient-to-b from-background to-muted/20">
         <div className="container py-8 md:py-12">
           <Link href="/" className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="h-4 w-4" />
@@ -81,11 +137,14 @@ export default function GratuityCalculator() {
                   <Label htmlFor="salary">Last Drawn Basic Salary (₹)</Label>
                   <Input
                     id="salary"
-                    type="number"
+                    type="text"
                     placeholder="50000"
                     value={lastDrawnSalary}
-                    onChange={(e) => setLastDrawnSalary(e.target.value)}
+                    onChange={(e) => handleNumberInput(e.target.value, setLastDrawnSalary, "lastDrawnSalary", true, 1)}
                   />
+                  {errors.lastDrawnSalary && (
+                    <p className="text-xs text-destructive">{errors.lastDrawnSalary}</p>
+                  )}
                   <p className="text-xs text-muted-foreground">Monthly basic salary + DA</p>
                 </div>
 
@@ -93,22 +152,84 @@ export default function GratuityCalculator() {
                   <Label htmlFor="years">Years of Service</Label>
                   <Input
                     id="years"
-                    type="number"
+                    type="text"
                     placeholder="10"
                     value={yearsOfService}
-                    onChange={(e) => setYearsOfService(e.target.value)}
+                    onChange={(e) => handleNumberInput(e.target.value, setYearsOfService, "yearsOfService", true, 0)}
                   />
+                  {errors.yearsOfService && (
+                    <p className="text-xs text-destructive">{errors.yearsOfService}</p>
+                  )}
                   <p className="text-xs text-muted-foreground">Minimum 5 years required</p>
                 </div>
 
-                <Button onClick={calculateGratuity} className="w-full" size="lg">
-                  <Award className="h-5 w-5" />
-                  Calculate Gratuity
-                </Button>
+                <div className="flex gap-3">
+                  <Button onClick={calculateGratuity} className={lastDrawnSalary || yearsOfService ? "flex-1" : "w-full"} size="lg">
+                    <Award className="h-5 w-5 mr-2" />
+                    Calculate Gratuity
+                  </Button>
+                  {(lastDrawnSalary || yearsOfService) && (
+                    <Button 
+                      onClick={() => {
+                        setLastDrawnSalary("");
+                        setYearsOfService("");
+                        setResult(null);
+                        setErrors({});
+                      }}
+                      variant="outline"
+                      size="lg"
+                      className="flex items-center gap-2"
+                    >
+                      <X className="h-5 w-5" />
+                      Clear
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
-            {result && (
+            {!result ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Info className="h-5 w-5" />
+                    How It Works
+                  </CardTitle>
+                  <CardDescription>Understanding gratuity calculation</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-4">
+                    <div className="p-4 bg-primary/5 rounded-lg border border-primary/10">
+                      <h3 className="font-semibold mb-2 text-sm">Eligibility</h3>
+                      <ul className="space-y-1 text-sm text-muted-foreground list-disc list-inside">
+                        <li>Minimum 5 years of continuous service required</li>
+                        <li>Payable on retirement, resignation, or death</li>
+                        <li>Applies to employees covered under Payment of Gratuity Act, 1972</li>
+                      </ul>
+                    </div>
+
+                    <div className="p-4 bg-accent/5 rounded-lg border border-accent/10">
+                      <h3 className="font-semibold mb-2 text-sm">Calculation Formula</h3>
+                      <p className="text-xs text-muted-foreground mb-2 font-mono bg-muted p-2 rounded">
+                        Gratuity = (Last Drawn Salary × 15 × Years of Service) / 26
+                      </p>
+                      <ul className="space-y-1 text-sm text-muted-foreground list-disc list-inside">
+                        <li><strong>Last Drawn Salary:</strong> Basic + Dearness Allowance (DA)</li>
+                        <li><strong>15:</strong> Number of days&apos; salary per year</li>
+                        <li><strong>26:</strong> Number of working days in a month</li>
+                        <li><strong>Years of Service:</strong> Full years of continuous service</li>
+                      </ul>
+                    </div>
+
+                    <div className="p-3 bg-muted/50 rounded-lg border">
+                      <p className="text-xs text-muted-foreground">
+                        <strong>Maximum Cap:</strong> Gratuity is capped at ₹20 lakhs as per current regulations.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
               <Card>
                 <CardHeader>
                   <CardTitle>Gratuity Amount</CardTitle>

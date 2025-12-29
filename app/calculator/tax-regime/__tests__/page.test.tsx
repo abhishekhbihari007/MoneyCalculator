@@ -32,24 +32,26 @@ describe('Tax Regime Picker', () => {
   it('renders the calculator form', () => {
     render(<TaxRegimePicker />)
     
-    expect(screen.getByText('Tax Regime Picker')).toBeInTheDocument()
-    expect(screen.getByLabelText(/Annual Income/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Total Deductions/i)).toBeInTheDocument()
-    expect(screen.getByText('Compare Tax Regimes')).toBeInTheDocument()
+    expect(screen.getByText(/Indian Income Tax Regime Calculator/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Annual Gross Income/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Section 80C/i)).toBeInTheDocument()
+    // "Calculate Tax" appears in button and in "How It Works" text
+    expect(screen.getAllByText(/Calculate Tax/i).length).toBeGreaterThan(0)
   })
 
-  it('shows error alert when income is invalid', async () => {
+  it('shows error when income is invalid', async () => {
     const user = userEvent.setup()
-    const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {})
     
     render(<TaxRegimePicker />)
     
-    const calculateButton = screen.getByText('Compare Tax Regimes')
+    // "Calculate Tax" appears in button and in "How It Works" text, so get the button specifically
+    const calculateButton = screen.getByRole('button', { name: /Calculate Tax/i })
     await user.click(calculateButton)
     
-    expect(alertSpy).toHaveBeenCalledWith('Please enter a valid annual income')
-    
-    alertSpy.mockRestore()
+    // The component shows error messages in the UI, not alerts
+    await waitFor(() => {
+      expect(screen.getByText(/Annual income must be greater than ₹0/i)).toBeInTheDocument()
+    })
   })
 
   it('compares old and new tax regimes', async () => {
@@ -57,9 +59,10 @@ describe('Tax Regime Picker', () => {
     
     render(<TaxRegimePicker />)
     
-    const incomeInput = screen.getByLabelText(/Annual Income/i)
-    const deductionsInput = screen.getByLabelText(/Total Deductions/i)
-    const calculateButton = screen.getByText('Compare Tax Regimes')
+    const incomeInput = screen.getByLabelText(/Annual Gross Income/i)
+    const deductionsInput = screen.getByLabelText(/Section 80C/i)
+    // "Calculate Tax" appears in button and in "How It Works" text, so get the button specifically
+    const calculateButton = screen.getByRole('button', { name: /Calculate Tax/i })
     
     await user.clear(incomeInput)
     await user.type(incomeInput, '1000000')
@@ -69,15 +72,19 @@ describe('Tax Regime Picker', () => {
     await user.click(calculateButton)
     
     // Wait for results to appear
+    // The component shows the selected regime and a comparison section
     await waitFor(() => {
-      expect(screen.getByText('New Tax Regime')).toBeInTheDocument()
-      expect(screen.getByText('Old Tax Regime')).toBeInTheDocument()
+      // Check for comparison section which shows both regimes
+      expect(screen.getByText(/Tax under Old Regime/i)).toBeInTheDocument()
+      expect(screen.getByText(/Tax under New Regime/i)).toBeInTheDocument()
     })
     
     // Check that comparison results are displayed (multiple instances exist)
     expect(screen.getAllByText(/Taxable Income/i).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/Tax Payable/i).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/After Tax Income/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Final Tax Payable/i).length).toBeGreaterThan(0)
+    // Check for gross income and deductions
+    expect(screen.getAllByText(/Gross Income/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Total Deductions/i).length).toBeGreaterThan(0)
   })
 
   it('displays recommendation based on tax savings', async () => {
@@ -85,9 +92,10 @@ describe('Tax Regime Picker', () => {
     
     render(<TaxRegimePicker />)
     
-    const incomeInput = screen.getByLabelText(/Annual Income/i)
-    const deductionsInput = screen.getByLabelText(/Total Deductions/i)
-    const calculateButton = screen.getByText('Compare Tax Regimes')
+    const incomeInput = screen.getByLabelText(/Annual Gross Income/i)
+    const deductionsInput = screen.getByLabelText(/Section 80C/i)
+    // "Calculate Tax" appears in button and in "How It Works" text, so get the button specifically
+    const calculateButton = screen.getByRole('button', { name: /Calculate Tax/i })
     
     await user.clear(incomeInput)
     await user.type(incomeInput, '800000')
@@ -101,7 +109,7 @@ describe('Tax Regime Picker', () => {
     })
     
     // Check that savings are displayed
-    expect(screen.getByText(/You Save/i)).toBeInTheDocument()
+    expect(screen.getByText(/Tax Savings/i)).toBeInTheDocument()
   })
 
   it('updates input values correctly', async () => {
@@ -109,16 +117,21 @@ describe('Tax Regime Picker', () => {
     
     render(<TaxRegimePicker />)
     
-    const incomeInput = screen.getByLabelText(/Annual Income/i) as HTMLInputElement
-    const deductionsInput = screen.getByLabelText(/Total Deductions/i) as HTMLInputElement
+    const incomeInput = screen.getByLabelText(/Annual Gross Income/i) as HTMLInputElement
+    const deductionsInput = screen.getByLabelText(/Section 80C/i) as HTMLInputElement
     
     await user.clear(incomeInput)
     await user.type(incomeInput, '1200000')
+    // Input values are strings in HTML inputs
     expect(incomeInput.value).toBe('1200000')
     
     await user.clear(deductionsInput)
-    await user.type(deductionsInput, '200000')
-    expect(deductionsInput.value).toBe('200000')
+    // Type a value within the limit (150000 max for 80C)
+    await user.type(deductionsInput, '100000')
+    // Wait for the value to be set
+    await waitFor(() => {
+      expect(deductionsInput.value).toBe('100000')
+    })
   })
 
   it('displays formatted currency values in results', async () => {
@@ -126,23 +139,28 @@ describe('Tax Regime Picker', () => {
     
     render(<TaxRegimePicker />)
     
-    const incomeInput = screen.getByLabelText(/Annual Income/i)
-    const calculateButton = screen.getByText('Compare Tax Regimes')
+    const incomeInput = screen.getByLabelText(/Annual Gross Income/i)
+    // "Calculate Tax" appears in button and in "How It Works" text, so get the button specifically
+    const calculateButton = screen.getByRole('button', { name: /Calculate Tax/i })
     
     await user.clear(incomeInput)
     await user.type(incomeInput, '1000000')
     
     await user.click(calculateButton)
     
+    // Results show the selected regime and comparison
     await waitFor(() => {
-      expect(screen.getByText('New Tax Regime')).toBeInTheDocument()
+      // Either the selected regime or the comparison section should appear
+      const hasResults = screen.queryByText(/Old Tax Regime/i) || 
+                        screen.queryByText(/New Tax Regime/i) ||
+                        screen.queryByText(/Tax Savings/i)
+      expect(hasResults).toBeTruthy()
     })
     
     // Check that currency values are formatted
-    // Find the card containing the New Tax Regime results
-    const newRegimeHeading = screen.getByText('New Tax Regime')
-    const newRegimeCard = newRegimeHeading.closest('[class*="card"]') || newRegimeHeading.closest('div')?.parentElement
-    const resultText = newRegimeCard?.textContent || ''
+    // Find any result card that contains currency values
+    const comparisonSection = screen.getByText(/Tax under Old Regime/i).closest('div')?.parentElement
+    const resultText = comparisonSection?.textContent || ''
     // Should contain currency formatted numbers (₹ symbol or digits)
     expect(resultText).toMatch(/₹|\d/)
   })
@@ -152,9 +170,10 @@ describe('Tax Regime Picker', () => {
     
     render(<TaxRegimePicker />)
     
-    const incomeInput = screen.getByLabelText(/Annual Income/i)
-    const deductionsInput = screen.getByLabelText(/Total Deductions/i)
-    const calculateButton = screen.getByText('Compare Tax Regimes')
+    const incomeInput = screen.getByLabelText(/Annual Gross Income/i)
+    const deductionsInput = screen.getByLabelText(/Section 80C/i)
+    // "Calculate Tax" appears in button and in "How It Works" text, so get the button specifically
+    const calculateButton = screen.getByRole('button', { name: /Calculate Tax/i })
     
     await user.clear(incomeInput)
     await user.type(incomeInput, '500000')
@@ -164,8 +183,9 @@ describe('Tax Regime Picker', () => {
     await user.click(calculateButton)
     
     await waitFor(() => {
-      expect(screen.getByText('New Tax Regime')).toBeInTheDocument()
-      expect(screen.getByText('Old Tax Regime')).toBeInTheDocument()
+      // The comparison section shows both regimes
+      expect(screen.getByText(/Tax under Old Regime/i)).toBeInTheDocument()
+      expect(screen.getByText(/Tax under New Regime/i)).toBeInTheDocument()
     })
   })
 })

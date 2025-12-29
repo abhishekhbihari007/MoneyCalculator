@@ -11,7 +11,7 @@ const HeroSection = () => {
 
   return (
     <section 
-      className="relative min-h-screen py-12 md:py-16 overflow-x-hidden" 
+      className="relative min-h-screen pb-0 pt-0 overflow-x-hidden flex items-center justify-center" 
       style={{ 
         position: 'relative',
         width: '100vw',
@@ -26,9 +26,9 @@ const HeroSection = () => {
     >
       <ShaderBackground />
       
-      <div className="container relative z-10 h-full flex items-center mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+      <div className="container relative z-10 flex items-center justify-center mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl py-12">
         <div className="mx-auto max-w-4xl text-center w-full">
-          <h1 className="mb-4 font-heading text-4xl font-extrabold tracking-tight text-white md:text-5xl lg:text-6xl">
+          <h1 className="mb-4 font-heading text-4xl font-extrabold tracking-tight text-white md:text-5xl lg:text-6xl text-center">
             <span className="inline-block animate-fade-up" style={{ animationDelay: "0.1s" }}>
               Take Control of
             </span>
@@ -41,7 +41,7 @@ const HeroSection = () => {
             </span>
           </h1>
 
-          <p className="mx-auto mb-6 max-w-2xl text-lg text-white/80 md:text-xl animate-fade-up" style={{ animationDelay: "0.4s" }}>
+          <p className="mx-auto mb-6 max-w-2xl text-lg text-white/80 md:text-xl animate-fade-up text-center" style={{ animationDelay: "0.4s" }}>
             From understanding your actual take-home pay to building long-term wealth—we provide 
             the tools and insights you need to make every financial decision count.
           </p>
@@ -109,7 +109,7 @@ const HeroSection = () => {
 
           <div className="mt-10 grid grid-cols-3 gap-4 sm:gap-8 animate-fade-up" style={{ animationDelay: "0.7s" }}>
             {[
-              { value: "12", label: "Free Calculators", growth: "All tools available" },
+              { value: "10", label: "Free Calculators", growth: "All tools available" },
               { value: "Zero", label: "Signup Required", growth: "Start instantly" },
               { value: "Instant", label: "Results", growth: "Real-time calculations" },
             ].map((stat, index) => (
@@ -125,8 +125,6 @@ const HeroSection = () => {
           </div>
         </div>
       </div>
-      
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/40 to-transparent" />
     </section>
   );
 };

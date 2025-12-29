@@ -44,8 +44,8 @@ const categories = [
     color: "bg-destructive/10 text-destructive border-destructive/20",
     hoverColor: "hover:border-destructive/50",
     calculators: [
-      { name: "Life Cover Estimator", icon: Shield, description: "Calculate the right protection for your family", popular: true },
-      { name: "Medical Cover Planner", icon: Heart, description: "Find adequate health coverage for your needs" },
+      { name: "Term Insurance Calculator", icon: Shield, description: "Calculate the right life insurance coverage for your family", popular: true },
+      { name: "Health Insurance Calculator", icon: Heart, description: "Find adequate health coverage for your needs" },
     ],
   },
   {
@@ -56,6 +56,7 @@ const categories = [
     hoverColor: "hover:border-success/50",
     calculators: [
       { name: "EPF Accumulator", icon: Landmark, description: "Project your provident fund growth trajectory" },
+      { name: "EPS Pension Calculator", icon: Landmark, description: "Calculate your Employee Pension Scheme monthly pension" },
       { name: "Gratuity Estimator", icon: Award, description: "Know your service reward before you retire" },
       { name: "NPS Wealth Builder", icon: PiggyBank, description: "Plan your national pension contributions", popular: true },
       { name: "Retirement Mapper", icon: Target, description: "Chart your path to financial freedom" },
@@ -85,9 +86,10 @@ const getCalculatorLink = (name: string): string => {
     "Tax Regime Picker": "/calculator/tax-regime",
     "Salary Growth Tracker": "/calculator/salary-growth",
     "Offer Analyzer": "/calculator/offer-analyzer",
-    "Life Cover Estimator": "/insurance",
-    "Medical Cover Planner": "/insurance",
+    "Term Insurance Calculator": "/calculator/term-insurance",
+    "Health Insurance Calculator": "/calculator/health-insurance",
     "EPF Accumulator": "/calculator/epf",
+    "EPS Pension Calculator": "/calculator/eps",
     "Gratuity Estimator": "/calculator/gratuity",
     "NPS Wealth Builder": "/calculator/nps",
     "Retirement Mapper": "/calculator/retirement",

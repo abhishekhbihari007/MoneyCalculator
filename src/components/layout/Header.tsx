@@ -19,14 +19,15 @@ const calculatorSections = [
   {
     title: "Protection Planning",
     calculators: [
-      { name: "Life Cover Estimator", href: "/insurance", icon: Shield },
-      { name: "Medical Cover Planner", href: "/insurance", icon: Heart },
+      { name: "Term Insurance Calculator", href: "/calculator/term-insurance", icon: Shield },
+      { name: "Health Insurance Calculator", href: "/calculator/health-insurance", icon: Heart },
     ],
   },
   {
     title: "Wealth Builders",
     calculators: [
       { name: "EPF Accumulator", href: "/calculator/epf", icon: Landmark },
+      { name: "EPS Pension Calculator", href: "/calculator/eps", icon: Landmark },
       { name: "Gratuity Estimator", href: "/calculator/gratuity", icon: Award },
       { name: "NPS Wealth Builder", href: "/calculator/nps", icon: PiggyBank },
       { name: "Retirement Mapper", href: "/calculator/retirement", icon: Target },
@@ -46,42 +47,18 @@ const calculatorSections = [
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
-  const [isVisible, setIsVisible] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-
-      if (currentScrollY < 100) {
-        setIsVisible(true);
-      } else if (currentScrollY > lastScrollY && currentScrollY > 100) {
-        setIsVisible(false);
-      } else if (currentScrollY < lastScrollY) {
-        setIsVisible(true);
-      }
-
-      setLastScrollY(currentScrollY);
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [lastScrollY]);
 
 
   const navLinks = [
-    { name: "Credit Score", href: "/creditscore", icon: CreditCard },
-    { name: "Insurance", href: "/insurance", icon: Shield },
-    { name: "Blog", href: "#blog", icon: BookOpen },
-    { name: "Learn", href: "#knowledge", icon: GraduationCap },
+    { name: "Blog", href: "/blog", icon: BookOpen },
+    { name: "FAQ", href: "/faq", icon: AlertCircle },
+    { name: "About", href: "/about", icon: GraduationCap },
   ];
 
 
   return (
     <header 
-      className={`fixed top-0 left-0 right-0 z-[100] w-full border-b border-border/50 bg-white dark:bg-background transition-transform duration-300 ${
-        isVisible ? 'translate-y-0' : '-translate-y-full'
-      }`}
+      className="sticky top-0 left-0 right-0 z-[100] w-full border-b border-border/50 bg-white dark:bg-background shadow-sm"
     >
       <nav className="container flex h-16 items-center justify-between">
         {/* Logo */}
@@ -138,16 +115,6 @@ const Header = () => {
                         </div>
                       </div>
                     ))}
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-border">
-                    <Link
-                      href="/calculator/in-hand-salary"
-                      className="text-sm font-medium text-primary hover:underline flex items-center gap-1 cursor-pointer"
-                      onClick={() => setIsCalculatorOpen(false)}
-                    >
-                      View All Calculators
-                      <ChevronDown className="h-3 w-3 rotate-[-90deg]" />
-                    </Link>
                   </div>
                 </div>
               </div>

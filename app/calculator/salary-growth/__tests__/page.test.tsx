@@ -39,18 +39,19 @@ describe('Salary Growth Calculator', () => {
     expect(screen.getByText('Calculate Growth')).toBeInTheDocument()
   })
 
-  it('shows error alert when inputs are invalid', async () => {
+  it('shows error when inputs are invalid', async () => {
     const user = userEvent.setup()
-    const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {})
     
     render(<SalaryGrowthCalculator />)
     
     const calculateButton = screen.getByText('Calculate Growth')
     await user.click(calculateButton)
     
-    expect(alertSpy).toHaveBeenCalledWith('Please enter valid values')
-    
-    alertSpy.mockRestore()
+    // The component shows error messages in the UI, not alerts
+    // Check for error message about current salary
+    await waitFor(() => {
+      expect(screen.getByText(/Current salary must be greater than ₹0/i)).toBeInTheDocument()
+    })
   })
 
   it('calculates salary growth projection', async () => {
@@ -78,7 +79,7 @@ describe('Salary Growth Calculator', () => {
     })
     
     // Check that results are displayed
-    expect(screen.getByText(/Final Salary/i)).toBeInTheDocument()
+    expect(screen.getByText(/Final Nominal Salary/i)).toBeInTheDocument()
     expect(screen.getByText(/Total Growth/i)).toBeInTheDocument()
     expect(screen.getByText(/Yearly Breakdown/i)).toBeInTheDocument()
   })
@@ -132,10 +133,10 @@ describe('Salary Growth Calculator', () => {
       expect(screen.getByText('Salary Projection')).toBeInTheDocument()
     })
     
-    // After 1 year with 10% hike, salary should be 1,100,000
-    // Check that the result contains formatted currency
-    const resultContainer = screen.getByText(/Final Salary/i).closest('div')?.parentElement
-    const finalSalaryText = resultContainer?.textContent || ''
+    // After 1 year with 10% hike, salary should be 1,100,000  
+    // Check that the result contains formatted currency       
+    const resultContainer = screen.getByText(/Final Nominal Salary/i).closest('div')?.parentElement
+    const finalSalaryText = resultContainer?.textContent || '' 
     expect(finalSalaryText).toMatch(/\d/)
   })
 
@@ -179,8 +180,8 @@ describe('Salary Growth Calculator', () => {
     })
     
     // Check that currency is formatted
-    const resultContainer = screen.getByText(/Final Salary/i).closest('div')?.parentElement
-    const resultText = resultContainer?.textContent || ''
+    const resultContainer = screen.getByText(/Final Nominal Salary/i).closest('div')?.parentElement
+    const resultText = resultContainer?.textContent || ''      
     expect(resultText).toMatch(/\d/)
   })
 
@@ -205,12 +206,14 @@ describe('Salary Growth Calculator', () => {
     
     await waitFor(() => {
       // Check for any result text that indicates calculation completed
-      const resultText = screen.queryByText(/Final Salary|Total Growth|Year 1/i)
-      return resultText !== null
+      // Use queryAllByText since there might be multiple matches (e.g., "Year 1" appears in breakdown)
+      const resultTexts = screen.queryAllByText(/Final Nominal Salary|Total Growth|Year 1/i)
+      return resultTexts.length > 0
     }, { timeout: 3000 })
     
     // With 0% hike, final salary should equal initial salary
-    const finalSalaryElement = screen.queryByText(/Final Salary/i)
+    const finalSalaryElement = screen.queryByText(/Final Nominal Salary/i)
+    expect(finalSalaryElement).toBeInTheDocument()
     if (finalSalaryElement) {
       const resultContainer = finalSalaryElement.closest('div')?.parentElement
       const finalSalaryText = resultContainer?.textContent || ''
