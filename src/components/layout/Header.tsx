@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Menu, X, Calculator, BookOpen, GraduationCap, CreditCard, Shield, Wallet, Receipt, TrendingUp, Scale, Heart, Landmark, Award, PiggyBank, Target, Clock, BarChart3, AlertCircle, Home, ChevronDown, Coins } from "lucide-react";
+import { Menu, X, Calculator, BookOpen, GraduationCap, CreditCard, Shield, Wallet, Receipt, TrendingUp, Scale, Heart, Landmark, Award, PiggyBank, Target, Clock, BarChart3, AlertCircle, Home, ChevronDown, Coins, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Logo from "@/components/Logo";
 
@@ -50,9 +50,10 @@ const Header = () => {
 
 
   const navLinks = [
+    { name: "Creditscore", href: "/creditscore", icon: CreditCard },
+    { name: "Insurance", href: "/insurance", icon: Shield },
     { name: "Blog", href: "/blog", icon: BookOpen },
-    { name: "FAQ", href: "/faq", icon: AlertCircle },
-    { name: "About", href: "/about", icon: GraduationCap },
+    { name: "Learn", href: "/learn", icon: GraduationCap },
   ];
 
 
