@@ -90,7 +90,7 @@ const Footer = () => {
           <div className="lg:col-span-2">
             <Link href="/" className="mb-4 flex items-center gap-3 group">
               <Logo className="h-8 w-auto" />
-              <span className="font-heading text-xl font-bold text-foreground">Manage Your Salary</span>
+              <span className="font-heading text-xl font-bold text-foreground">ManageYourSalary</span>
             </Link>
             <p className="mb-6 max-w-xs text-sm text-muted-foreground">
               Your trusted companion for salary calculations, tax planning, and building long-term wealth. Made with care for Indian professionals.
