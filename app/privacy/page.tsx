@@ -70,18 +70,18 @@ export default function PrivacyPage() {
               <section>
                 <h2 className="text-2xl font-semibold mb-4">Analytics & Cookies</h2>
                 <p className="text-muted-foreground leading-relaxed">
-                  Currently, we do not use any analytics or tracking cookies. All calculations happen locally 
-                  in your browser without any data transmission. If we implement analytics in the future, we will 
-                  update this policy and provide a cookie consent mechanism.
+                  We may use anonymous analytics to understand website usage patterns (like page views, 
+                  popular calculators). This helps us improve our services. These analytics don&apos;t identify 
+                  individual users or collect personal information.
                 </p>
               </section>
 
               <section>
                 <h2 className="text-2xl font-semibold mb-4">Third-Party Services</h2>
                 <p className="text-muted-foreground leading-relaxed">
-                  Our website is hosted on third-party hosting services. These services may collect anonymous 
-                  technical data (like IP addresses for security purposes) but do not have access to your personal 
-                  or financial information entered into our calculators. All calculator data remains in your browser.
+                  Our website may use third-party services for hosting and analytics. These services may 
+                  collect anonymous usage data but don&apos;t have access to your personal or financial information 
+                  entered into our calculators.
                 </p>
               </section>
 

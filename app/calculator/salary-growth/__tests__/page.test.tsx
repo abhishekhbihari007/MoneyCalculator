@@ -133,10 +133,10 @@ describe('Salary Growth Calculator', () => {
       expect(screen.getByText('Salary Projection')).toBeInTheDocument()
     })
     
-    // After 1 year with 10% hike, salary should be 1,100,000  
-    // Check that the result contains formatted currency       
+    // After 1 year with 10% hike, salary should be 1,100,000
+    // Check that the result contains formatted currency
     const resultContainer = screen.getByText(/Final Nominal Salary/i).closest('div')?.parentElement
-    const finalSalaryText = resultContainer?.textContent || '' 
+    const finalSalaryText = resultContainer?.textContent || ''
     expect(finalSalaryText).toMatch(/\d/)
   })
 
@@ -181,7 +181,7 @@ describe('Salary Growth Calculator', () => {
     
     // Check that currency is formatted
     const resultContainer = screen.getByText(/Final Nominal Salary/i).closest('div')?.parentElement
-    const resultText = resultContainer?.textContent || ''      
+    const resultText = resultContainer?.textContent || ''
     expect(resultText).toMatch(/\d/)
   })
 

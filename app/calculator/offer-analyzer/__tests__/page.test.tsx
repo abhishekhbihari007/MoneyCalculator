@@ -130,12 +130,12 @@ describe('Offer Analyzer', () => {
       const basicLabel = basicLabels[0]
       const basicInput = basicLabel.closest('div')?.querySelector('input') as HTMLInputElement
       if (basicInput) {
-        await user.clear(basicInput)
-        await user.type(basicInput, '45')
-        // Check that the value was updated (may need to wait for state update)
-        await waitFor(() => {
-          expect(parseInt(basicInput.value) || 0).toBeGreaterThan(40)
-        })
+      await user.clear(basicInput)
+      await user.type(basicInput, '45')
+      // Check that the value was updated (may need to wait for state update)
+      await waitFor(() => {
+        expect(parseInt(basicInput.value) || 0).toBeGreaterThan(40)
+      })
       }
     }
   })

@@ -9,7 +9,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import Link from "next/link";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import CalculatorDisclaimer from "@/components/CalculatorDisclaimer";
 
 export default function EPFCalculator() {
   const [basicSalary, setBasicSalary] = useState<string>("");
