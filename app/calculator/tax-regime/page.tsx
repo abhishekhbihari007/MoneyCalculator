@@ -503,13 +503,12 @@ export default function TaxRegimePicker() {
                           <li className="leading-relaxed">
                             <strong className="text-foreground">Apply Tax Slabs:</strong> Tax is calculated progressively using these rates:
                             <ul className="list-disc list-inside ml-4 mt-2 space-y-1 bg-muted/30 p-2 rounded">
-                              <li><strong>0 - ₹3L:</strong> 0%</li>
-                              <li><strong>₹3L - ₹7L:</strong> 5%</li>
-                              <li><strong>₹7L - ₹10L:</strong> 10%</li>
-                              <li><strong>₹10L - ₹12L:</strong> 15%</li>
-                              <li><strong>₹12L - ₹15L:</strong> 20%</li>
-                              <li><strong>₹15L - ₹20L:</strong> 25%</li>
-                              <li><strong>Above ₹20L:</strong> 30%</li>
+                              <li><strong>₹0 - ₹3L:</strong> 0%</li>
+                              <li><strong>₹3,00,001 - ₹6L:</strong> 5%</li>
+                              <li><strong>₹6,00,001 - ₹9L:</strong> 10%</li>
+                              <li><strong>₹9,00,001 - ₹12L:</strong> 15%</li>
+                              <li><strong>₹12,00,001 - ₹15L:</strong> 20%</li>
+                              <li><strong>Above ₹15L:</strong> 30%</li>
                             </ul>
                           </li>
                           <li className="leading-relaxed">

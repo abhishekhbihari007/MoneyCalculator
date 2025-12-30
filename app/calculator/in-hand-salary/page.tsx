@@ -239,26 +239,26 @@ export default function InHandSalaryCalculator() {
       
       // New Tax Regime Slabs (FY 2024-25) - Official Budget 2024 slabs
       // 0–3L → 0%
-      // 3–7L → 5%
-      // 7–10L → 10%
-      // 10–12L → 15%
-      // 12–15L → 20%
+      // 3,00,001–6L → 5%
+      // 6,00,001–9L → 10%
+      // 9,00,001–12L → 15%
+      // 12,00,001–15L → 20%
       // Above 15L → 30%
       
       let taxBase = 0;
       
       if (taxableIncome <= 300000) {
         taxBase = 0;
-      } else if (taxableIncome <= 700000) {
+      } else if (taxableIncome <= 600000) {
         taxBase = (taxableIncome - 300000) * 0.05;
-      } else if (taxableIncome <= 1000000) {
-        taxBase = (taxableIncome - 700000) * 0.10 + 20000; // 5% of 4L = 20,000
+      } else if (taxableIncome <= 900000) {
+        taxBase = (taxableIncome - 600000) * 0.10 + 15000; // 5% of 3L = 15,000
       } else if (taxableIncome <= 1200000) {
-        taxBase = (taxableIncome - 1000000) * 0.15 + 50000; // 20,000 + 30,000
+        taxBase = (taxableIncome - 900000) * 0.15 + 45000; // 15,000 + 30,000
       } else if (taxableIncome <= 1500000) {
-        taxBase = (taxableIncome - 1200000) * 0.20 + 80000; // 50,000 + 30,000
+        taxBase = (taxableIncome - 1200000) * 0.20 + 90000; // 45,000 + 45,000
       } else {
-        taxBase = (taxableIncome - 1500000) * 0.30 + 140000; // 80,000 + 60,000
+        taxBase = (taxableIncome - 1500000) * 0.30 + 150000; // 90,000 + 60,000
       }
       
       // Apply Section 87A rebate for New Regime (FY 2024-25):

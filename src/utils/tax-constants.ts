@@ -44,12 +44,12 @@ export interface TaxSlab {
  * IMPORTANT: There is NO 25% tax slab in New Tax Regime
  */
 export const NEW_REGIME_SLABS: TaxSlab[] = [
-  { from: 0, to: 300000, rate: 0 },
-  { from: 300001, to: 700000, rate: 0.05 }, // 3L-7L @ 5%
-  { from: 700001, to: 1000000, rate: 0.10 }, // 7L-10L @ 10%
-  { from: 1000001, to: 1200000, rate: 0.15 }, // 10L-12L @ 15%
-  { from: 1200001, to: 1500000, rate: 0.20 }, // 12L-15L @ 20%
-  { from: 1500001, to: Infinity, rate: 0.30 }, // Above 15L @ 30%
+  { from: 0, to: 300000, rate: 0 }, // ₹0 – ₹3,00,000 @ 0%
+  { from: 300001, to: 600000, rate: 0.05 }, // ₹3,00,001 – ₹6,00,000 @ 5%
+  { from: 600001, to: 900000, rate: 0.10 }, // ₹6,00,001 – ₹9,00,000 @ 10%
+  { from: 900001, to: 1200000, rate: 0.15 }, // ₹9,00,001 – ₹12,00,000 @ 15%
+  { from: 1200001, to: 1500000, rate: 0.20 }, // ₹12,00,001 – ₹15,00,000 @ 20%
+  { from: 1500001, to: Infinity, rate: 0.30 }, // Above ₹15,00,000 @ 30%
 ];
 
 /**
