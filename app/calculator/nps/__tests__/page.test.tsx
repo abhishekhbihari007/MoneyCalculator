@@ -264,5 +264,3 @@ describe('NPS Calculator', () => {
 
 
 
-
-

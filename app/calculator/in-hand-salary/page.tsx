@@ -46,8 +46,8 @@ interface SalaryBreakdown {
 export default function InHandSalaryCalculator() {
   const [ctc, setCtc] = useState<string>("");
   const [variablePay, setVariablePay] = useState<string>("");
-  // Basic Percentage is FIXED at 50% per ET Money spec - not adjustable
-  const basicPercentage = 50;
+  // Basic Percentage - adjustable via slider (30-50%)
+  const [basicPercentage, setBasicPercentage] = useState<number>(50);
   const [hraOption, setHraOption] = useState<"40" | "50">("50");
   const [taxRegime, setTaxRegime] = useState<"old" | "new">("new");
   const [age, setAge] = useState<string>("30");
@@ -154,9 +154,9 @@ export default function InHandSalaryCalculator() {
     // Step 1: Monthly CTC = round(CTC / 12)
     const monthlyCTC = Math.round(ctcValue / 12);
     
-    // Step 2: Monthly Basic Salary = round((CTC × 50%) / 12)
-    // Basic Percentage is FIXED at 50% of TOTAL CTC per ET Money spec
-    const monthlyBasic = Math.round((ctcValue * 0.50) / 12);
+    // Step 2: Monthly Basic Salary = round((CTC × basicPercentage%) / 12)
+    // Basic Percentage is adjustable via slider (30-50%)
+    const monthlyBasic = Math.round((ctcValue * basicPercentage / 100) / 12);
     const basicSalary = monthlyBasic * 12; // Yearly Basic
     
     // Step 3: Monthly HRA = round(50% of Monthly Basic)
@@ -180,20 +180,25 @@ export default function InHandSalaryCalculator() {
     const monthlyGratuity = Math.round(monthlyBasic * 0.0481);
     const gratuity = monthlyGratuity * 12; // Yearly Gratuity
 
-    // Step 7: Calculate Special Allowance directly (ET Money method)
-    // ET Money: Special = CTC - Basic - HRA - Employee PF - Gratuity - Employer PF
-    const specialAllowance = Math.max(0, ctcValue - basicSalary - hra - pfEmployee - gratuity - pfEmployer);
+    // Step 7: Calculate Gross Salary = CTC - (Employee PF + Gratuity + Employer PF)
+    // Gross Salary is what remains after deducting mandatory contributions from CTC
+    const grossSalary = Math.max(0, ctcValue - pfEmployee - gratuity - pfEmployer);
+    const monthlyGross = grossSalary / 12;
+    
+    // Step 8: Calculate Special Allowance = Gross Salary - (Basic + HRA)
+    // Special Allowance is the remaining amount after Basic and HRA from Gross Salary
+    const specialAllowance = Math.max(0, grossSalary - basicSalary - hra);
     const monthlySpecialAllowance = Math.round(specialAllowance / 12);
     const specialAllowanceYearly = monthlySpecialAllowance * 12; // Recalculate yearly from rounded monthly
     
-    // Step 8: Calculate Gross Salary = Basic + HRA + Special Allowance (ET Money method)
-    // This is the correct Gross Salary for tax calculation
-    const grossSalary = basicSalary + hra + specialAllowanceYearly;
-    const monthlyGross = grossSalary / 12;
+    // Validate that Gross Salary and Special Allowance are non-negative
+    if (grossSalary <= 0) {
+      setErrors(prev => ({ ...prev, ctc: "CTC is insufficient for mandatory contributions (PF + Gratuity). Please increase CTC." }));
+      return;
+    }
     
-    // Validate that Special Allowance is non-negative
     if (specialAllowance < 0) {
-      setErrors(prev => ({ ...prev, ctc: "CTC is insufficient for Basic + HRA + PF + Gratuity. Please increase CTC." }));
+      setErrors(prev => ({ ...prev, ctc: "CTC is insufficient. Gross Salary cannot cover Basic + HRA. Please increase CTC or adjust Basic percentage." }));
       return;
     }
 
@@ -428,6 +433,21 @@ export default function InHandSalaryCalculator() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pfOption]);
 
+  // Auto-recalculate when basic percentage changes (if calculation already done)
+  useEffect(() => {
+    // Skip initial render - only recalculate on actual changes
+    if (!hasCalculatedRef.current) {
+      return;
+    }
+    
+    // Only recalculate if we have a valid CTC and calculation has been done at least once
+    const ctcValue = parseFloat(ctc);
+    if (ctc && !isNaN(ctcValue) && ctcValue > 0) {
+      calculateSalary();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [basicPercentage]);
+
   const formatCurrency = (amount: number) => {
     if (isNaN(amount) || !isFinite(amount) || amount < 0) {
       return "₹0";
@@ -441,10 +461,10 @@ export default function InHandSalaryCalculator() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col" style={{ width: '100%', maxWidth: '100vw', overflowX: 'hidden', boxSizing: 'border-box' }}>
       <Header />
-      <main className="flex-1 bg-gradient-to-b from-background to-muted/20">
-        <div className="container py-8 md:py-12">
+      <main className="flex-1 bg-gradient-to-b from-background to-muted/20 overflow-x-hidden" style={{ width: '100%', maxWidth: '100vw', overflowX: 'hidden', boxSizing: 'border-box', WebkitOverflowScrolling: 'touch' }}>
+        <div className="container py-8 md:py-12 px-4 sm:px-6" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', paddingLeft: '1rem', paddingRight: '1rem' }}>
           <Link href="/" className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="h-4 w-4" />
             Back to Home
@@ -455,17 +475,17 @@ export default function InHandSalaryCalculator() {
             <p className="text-muted-foreground">The salary calculator helps estimate in-hand salary based on CTC, deductions, and chosen tax regime.</p>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Card>
+          <div className="grid gap-6 lg:grid-cols-2" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+            <Card className="w-full max-w-full overflow-hidden" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
               <CardHeader>
-                <CardTitle>Calculate Your In-hand Salary</CardTitle>
-                <CardDescription>Enter your salary details to calculate your take-home salary</CardDescription>
+                <CardTitle className="text-lg sm:text-xl break-words">Calculate Your In-hand Salary</CardTitle>
+                <CardDescription className="text-sm break-words">Enter your salary details to calculate your take-home salary</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-6" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
                 {/* Tax Regime Tabs - Inside Card */}
-                <div className="mb-4 w-full">
-                  <Tabs value={taxRegime} onValueChange={(value) => setTaxRegime(value as "old" | "new")} className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 gap-1">
+                <div className="mb-4" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+                  <Tabs value={taxRegime} onValueChange={(value) => setTaxRegime(value as "old" | "new")} className="w-full" style={{ width: '100%', maxWidth: '100%' }}>
+                    <TabsList className="grid w-full grid-cols-2 gap-1" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
                       <TabsTrigger value="old" className="text-xs sm:text-sm flex-1">Old regime</TabsTrigger>
                       <TabsTrigger value="new" className="text-xs sm:text-sm flex-1">New regime</TabsTrigger>
                     </TabsList>
@@ -514,23 +534,24 @@ export default function InHandSalaryCalculator() {
                   <p className="text-xs text-muted-foreground">Max allowed: 15% of CTC.</p>
                 </div>
 
-                {/* Basic Salary - Show slider even though fixed at 50% */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label>Basic Salary is <strong>50%</strong> of CTC</Label>
-                    <span className="text-sm font-semibold">{formatCurrency((parseFloat(ctc) || 0) * basicPercentage / 100)}</span>
+                {/* Basic Salary - Adjustable slider */}
+                <div className="space-y-3" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+                  <div className="flex items-center justify-between gap-2" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+                    <Label className="text-sm sm:text-base break-words" style={{ minWidth: 0, flex: '1 1 auto', overflow: 'hidden' }}>Basic Salary is <strong>{basicPercentage}%</strong> of CTC</Label>
+                    <span className="text-xs sm:text-sm font-semibold whitespace-nowrap flex-shrink-0" style={{ flexShrink: 0 }}>{formatCurrency((parseFloat(ctc) || 0) * basicPercentage / 100)}</span>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-xs text-muted-foreground w-12">30%</span>
+                  <div className="flex items-center gap-2 sm:gap-4" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+                    <span className="text-xs text-muted-foreground w-8 sm:w-12 flex-shrink-0" style={{ flexShrink: 0 }}>30%</span>
                     <Slider
-                      value={[50]}
-                      disabled
+                      value={[basicPercentage]}
+                      onValueChange={(value) => setBasicPercentage(value[0])}
                       min={30}
                       max={50}
                       step={1}
-                      className="flex-1"
+                      className="flex-1 min-w-0"
+                      style={{ flex: '1 1 auto', minWidth: 0, maxWidth: '100%' }}
                     />
-                    <span className="text-xs text-muted-foreground w-12">50%</span>
+                    <span className="text-xs text-muted-foreground w-8 sm:w-12 flex-shrink-0" style={{ flexShrink: 0 }}>50%</span>
                   </div>
                 </div>
 
@@ -547,7 +568,7 @@ export default function InHandSalaryCalculator() {
                       <Label htmlFor="pf-fixed-main" className="font-normal cursor-pointer">Minimum ₹1,800/month</Label>
                     </div>
                   </RadioGroup>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground break-words">
                     {pfOption === "actual" 
                       ? `EPF will be 12% of basic salary (${formatCurrency(Math.round((parseFloat(ctc) || 0) * 0.50 * 0.12 / 12))}/month)`
                       : "EPF will be capped at ₹1,800/month (minimum contribution)"}
@@ -564,7 +585,7 @@ export default function InHandSalaryCalculator() {
                     {exemptionsEnabled && (
                       <>
                         <div className="space-y-2">
-                          <Label htmlFor="section80C">Section 80C (₹) - Max ₹1,50,000 (Old Regime Only)</Label>
+                          <Label htmlFor="section80C" className="text-sm break-words">Section 80C (₹) - Max ₹1,50,000 (Old Regime Only)</Label>
                           <Input
                             id="section80C"
                             type="text"
@@ -580,7 +601,7 @@ export default function InHandSalaryCalculator() {
                           {errors.section80C && (
                             <p className="text-xs text-destructive">{errors.section80C}</p>
                           )}
-                          <p className="text-xs text-muted-foreground">PPF, ELSS, Life Insurance, etc. (Leave empty for auto-calculation). Maximum ₹1,50,000 for Old Regime.</p>
+                          <p className="text-xs text-muted-foreground break-words">PPF, ELSS, Life Insurance, etc. (Leave empty for auto-calculation). Maximum ₹1,50,000 for Old Regime.</p>
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="age">Age (for 80D calculation)</Label>
@@ -602,10 +623,10 @@ export default function InHandSalaryCalculator() {
                   </div>
                 )}
 
-                <div className="flex gap-3">
-                  <Button onClick={calculateSalary} className={ctc || variablePay || section80CInput ? "flex-1" : "w-full"} size="lg">
-                  <Calculator className="h-5 w-5 mr-2" />
-                  Calculate Salary
+                <div className="flex gap-2 sm:gap-3" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+                  <Button onClick={calculateSalary} className={ctc || variablePay || section80CInput ? "flex-1 min-w-0" : "w-full"} size="lg" style={{ minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' }}>
+                  <Calculator className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2 flex-shrink-0" />
+                  <span className="text-xs sm:text-base truncate" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Calculate Salary</span>
                 </Button>
                   {(ctc || variablePay || section80CInput) && (
                     <Button 
@@ -618,10 +639,11 @@ export default function InHandSalaryCalculator() {
                       }}
                       variant="outline"
                       size="lg"
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-1 sm:gap-2 flex-shrink-0"
+                      style={{ flexShrink: 0 }}
                     >
-                      <X className="h-5 w-5" />
-                      Clear
+                      <X className="h-4 w-4 sm:h-5 sm:w-5" />
+                      <span className="hidden sm:inline">Clear</span>
                     </Button>
                   )}
                 </div>
@@ -630,13 +652,13 @@ export default function InHandSalaryCalculator() {
             </Card>
 
             {result && (
-              <div className="space-y-6">
+              <div className="space-y-6 lg:col-span-1" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden', WebkitOverflowScrolling: 'touch' }}>
                 {/* Your In-hand Salary is - Main Display (ET Money Style) */}
-                <Card className="border-primary/20">
-                  <CardContent className="pt-6">
-                    <div className="text-center space-y-2">
-                      <p className="text-sm text-muted-foreground">Your In-hand Salary is</p>
-                      <p className="text-5xl font-bold text-primary">
+                <Card className="border-primary/20 w-full max-w-full overflow-hidden" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
+                  <CardContent className="pt-6" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', padding: '1.5rem', overflow: 'hidden' }}>
+                    <div className="text-center space-y-2" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+                      <p className="text-sm text-muted-foreground" style={{ width: '100%', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>Your In-hand Salary is</p>
+                      <p className="text-3xl sm:text-4xl md:text-5xl font-bold text-primary break-words" style={{ width: '100%', maxWidth: '100%', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                         {viewMode === "monthly" 
                           ? "₹" + (result.netSalary / 12 / 100000).toFixed(2) + " Lacs /month"
                           : (result.netSalary / 100000).toFixed(2) + " Lacs /year"
@@ -647,75 +669,75 @@ export default function InHandSalaryCalculator() {
                 </Card>
 
                 {/* Total CTC Display */}
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="text-center space-y-2">
-                      <p className="text-sm text-muted-foreground">Total CTC</p>
-                      <p className="text-2xl font-bold">{formatCurrency(result.ctc)}</p>
+                <Card className="w-full max-w-full overflow-hidden" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
+                  <CardContent className="pt-6" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', padding: '1.5rem', overflow: 'hidden' }}>
+                    <div className="text-center space-y-2" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+                      <p className="text-sm text-muted-foreground" style={{ width: '100%', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>Total CTC</p>
+                      <p className="text-xl sm:text-2xl font-bold break-words" style={{ width: '100%', maxWidth: '100%', wordBreak: 'break-word', overflowWrap: 'break-word' }}>{formatCurrency(result.ctc)}</p>
                     </div>
                   </CardContent>
                 </Card>
 
                 {/* Income Tax Breakdown */}
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center gap-2">
-                      <CardTitle>Income Tax ({taxRegime === "old" ? "Old" : "New"} Regime)</CardTitle>
-                      <Info className="h-4 w-4 text-muted-foreground" />
+                <Card className="w-full max-w-full overflow-hidden" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
+                  <CardHeader style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
+                    <div className="flex items-center gap-2 flex-wrap" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+                      <CardTitle className="text-base sm:text-lg break-words" style={{ minWidth: 0, flex: '1 1 auto', overflow: 'hidden', wordBreak: 'break-word' }}>Income Tax ({taxRegime === "old" ? "Old" : "New"} Regime)</CardTitle>
+                      <Info className="h-4 w-4 text-muted-foreground flex-shrink-0" style={{ flexShrink: 0 }} />
                     </div>
                     {taxRegime === "old" && exemptionsEnabled && (
-                      <CardDescription>Assuming maximum eligible exemptions</CardDescription>
+                      <CardDescription className="text-xs sm:text-sm break-words" style={{ width: '100%', maxWidth: '100%', overflow: 'hidden', wordBreak: 'break-word' }}>Assuming maximum eligible exemptions</CardDescription>
                     )}
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-sm">Gross Salary (Yearly)</span>
-                      <span className="font-semibold">{formatCurrency(result.grossSalary)}</span>
+                  <CardContent className="space-y-3" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
+                    <div className="flex justify-between items-center gap-2" style={{ width: '100%', boxSizing: 'border-box' }}>
+                      <span className="text-xs sm:text-sm flex-shrink-0 min-w-0" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>Gross Salary (Yearly)</span>
+                      <span className="font-semibold text-xs sm:text-sm whitespace-nowrap flex-shrink-0" style={{ flexShrink: 0 }}>{formatCurrency(result.grossSalary)}</span>
                     </div>
                     {result.incomeTax > 0 ? (
                       <>
-                        <div className="flex justify-between text-destructive">
-                          <span className="text-sm">Standard Deduction</span>
-                          <span>-{formatCurrency(result.standardDeduction)}</span>
+                        <div className="flex justify-between items-center gap-2 text-destructive">
+                          <span className="text-xs sm:text-sm flex-shrink-0 min-w-0">Standard Deduction</span>
+                          <span className="text-xs sm:text-sm whitespace-nowrap">-{formatCurrency(result.standardDeduction)}</span>
                         </div>
-                        <div className="flex justify-between text-destructive">
-                          <span className="text-sm">Employee PF (Yearly)</span>
-                          <span>-{formatCurrency(result.pfEmployee)}</span>
+                        <div className="flex justify-between items-center gap-2 text-destructive">
+                          <span className="text-xs sm:text-sm flex-shrink-0 min-w-0">Employee PF (Yearly)</span>
+                          <span className="text-xs sm:text-sm whitespace-nowrap">-{formatCurrency(result.pfEmployee)}</span>
                         </div>
                         {taxRegime === "old" && exemptionsEnabled && (
                           <>
-                            <div className="flex justify-between text-destructive">
-                              <span className="text-sm">80C (PPF, ELSS, etc.)</span>
-                              <span>-{formatCurrency(result.section80C)}</span>
+                            <div className="flex justify-between items-center gap-2 text-destructive">
+                              <span className="text-xs sm:text-sm flex-shrink-0 min-w-0">80C (PPF, ELSS, etc.)</span>
+                              <span className="text-xs sm:text-sm whitespace-nowrap">-{formatCurrency(result.section80C)}</span>
                             </div>
-                            <div className="flex justify-between text-destructive">
-                              <span className="text-sm">80D (Health Insurance)</span>
-                              <span>-{formatCurrency(result.section80D)}</span>
+                            <div className="flex justify-between items-center gap-2 text-destructive">
+                              <span className="text-xs sm:text-sm flex-shrink-0 min-w-0">80D (Health Insurance)</span>
+                              <span className="text-xs sm:text-sm whitespace-nowrap">-{formatCurrency(result.section80D)}</span>
                             </div>
-                            <div className="flex justify-between text-destructive">
-                              <span className="text-sm">HRA Exemption</span>
-                              <span>-{formatCurrency(result.hraExemption)}</span>
+                            <div className="flex justify-between items-center gap-2 text-destructive">
+                              <span className="text-xs sm:text-sm flex-shrink-0 min-w-0">HRA Exemption</span>
+                              <span className="text-xs sm:text-sm whitespace-nowrap">-{formatCurrency(result.hraExemption)}</span>
                             </div>
                           </>
                         )}
                         <div className="pt-2 border-t space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span>Tax before Surcharge & Cess</span>
-                            <span>{formatCurrency(result.incomeTax - result.surcharge - result.cess)}</span>
+                          <div className="flex justify-between items-center gap-2 text-xs sm:text-sm">
+                            <span className="flex-shrink-0 min-w-0">Tax before Surcharge & Cess</span>
+                            <span className="whitespace-nowrap">{formatCurrency(result.incomeTax - result.surcharge - result.cess)}</span>
                           </div>
                           {result.surcharge > 0 && (
-                            <div className="flex justify-between text-sm">
-                              <span>Surcharge</span>
-                              <span className="text-orange-600">{formatCurrency(result.surcharge)}</span>
+                            <div className="flex justify-between items-center gap-2 text-xs sm:text-sm">
+                              <span className="flex-shrink-0 min-w-0">Surcharge</span>
+                              <span className="text-orange-600 whitespace-nowrap">{formatCurrency(result.surcharge)}</span>
                             </div>
                           )}
-                          <div className="flex justify-between text-sm">
-                            <span>Health & Education Cess (4%)</span>
-                            <span>{formatCurrency(result.cess)}</span>
+                          <div className="flex justify-between items-center gap-2 text-xs sm:text-sm">
+                            <span className="flex-shrink-0 min-w-0">Health & Education Cess (4%)</span>
+                            <span className="whitespace-nowrap">{formatCurrency(result.cess)}</span>
                           </div>
-                          <div className="flex justify-between font-semibold mt-2 pt-2 border-t">
-                            <span>Total Tax Payable</span>
-                            <span className="text-destructive">{formatCurrency(result.incomeTax)}</span>
+                          <div className="flex justify-between items-center gap-2 font-semibold mt-2 pt-2 border-t text-sm sm:text-base">
+                            <span className="flex-shrink-0 min-w-0">Total Tax Payable</span>
+                            <span className="text-destructive whitespace-nowrap">{formatCurrency(result.incomeTax)}</span>
                           </div>
                         </div>
                       </>
@@ -728,15 +750,16 @@ export default function InHandSalaryCalculator() {
                 </Card>
 
                 {/* Detailed Salary Breakdown (ET Money Style) */}
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle>Detailed Salary Breakdown</CardTitle>
-                      <div className="flex gap-2">
+                <Card className="w-full max-w-full overflow-hidden" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
+                  <CardHeader style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
+                    <div className="flex items-center justify-between gap-2 flex-wrap" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+                      <CardTitle className="text-base sm:text-lg break-words" style={{ minWidth: 0, flex: '1 1 auto', overflow: 'hidden', wordBreak: 'break-word' }}>Detailed Salary Breakdown</CardTitle>
+                      <div className="flex gap-1 sm:gap-2 flex-shrink-0" style={{ flexShrink: 0 }}>
                         <Button
                           variant={viewMode === "monthly" ? "default" : "outline"}
                           size="sm"
                           onClick={() => setViewMode("monthly")}
+                          className="text-xs sm:text-sm"
                         >
                           Monthly
                         </Button>
@@ -744,71 +767,72 @@ export default function InHandSalaryCalculator() {
                           variant={viewMode === "yearly" ? "default" : "outline"}
                           size="sm"
                           onClick={() => setViewMode("yearly")}
+                          className="text-xs sm:text-sm"
                         >
                           Yearly
                         </Button>
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-3">
+                  <CardContent className="space-y-3" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
                     {/* Earnings Section */}
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                          <span className="text-sm">Basic Salary</span>
+                    <div className="space-y-2" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+                      <div className="flex justify-between items-center gap-2" style={{ width: '100%', boxSizing: 'border-box' }}>
+                        <div className="flex items-center gap-2 min-w-0 flex-1" style={{ minWidth: 0, overflow: 'hidden' }}>
+                          <div className="w-3 h-3 rounded-full bg-blue-500 flex-shrink-0" style={{ flexShrink: 0 }}></div>
+                          <span className="text-xs sm:text-sm truncate" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Basic Salary</span>
                         </div>
-                        <span className="font-semibold">{formatCurrency(viewMode === "monthly" ? result.basicSalary / 12 : result.basicSalary)}</span>
+                        <span className="font-semibold text-xs sm:text-sm whitespace-nowrap flex-shrink-0" style={{ flexShrink: 0 }}>{formatCurrency(viewMode === "monthly" ? result.basicSalary / 12 : result.basicSalary)}</span>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-cyan-400"></div>
-                          <span className="text-sm">HRA</span>
+                      <div className="flex justify-between items-center gap-2" style={{ width: '100%', boxSizing: 'border-box' }}>
+                        <div className="flex items-center gap-2 min-w-0 flex-1" style={{ minWidth: 0, overflow: 'hidden' }}>
+                          <div className="w-3 h-3 rounded-full bg-cyan-400 flex-shrink-0" style={{ flexShrink: 0 }}></div>
+                          <span className="text-xs sm:text-sm truncate" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>HRA</span>
                         </div>
-                        <span className="font-semibold">{formatCurrency(viewMode === "monthly" ? result.hra / 12 : result.hra)}</span>
+                        <span className="font-semibold text-xs sm:text-sm whitespace-nowrap flex-shrink-0" style={{ flexShrink: 0 }}>{formatCurrency(viewMode === "monthly" ? result.hra / 12 : result.hra)}</span>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-pink-400"></div>
-                          <span className="text-sm">Special Allowance</span>
+                      <div className="flex justify-between items-center gap-2" style={{ width: '100%', boxSizing: 'border-box' }}>
+                        <div className="flex items-center gap-2 min-w-0 flex-1" style={{ minWidth: 0, overflow: 'hidden' }}>
+                          <div className="w-3 h-3 rounded-full bg-pink-400 flex-shrink-0" style={{ flexShrink: 0 }}></div>
+                          <span className="text-xs sm:text-sm truncate" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Special Allowance</span>
                         </div>
-                        <span className="font-semibold">{formatCurrency(viewMode === "monthly" ? result.specialAllowance / 12 : result.specialAllowance)}</span>
+                        <span className="font-semibold text-xs sm:text-sm whitespace-nowrap flex-shrink-0" style={{ flexShrink: 0 }}>{formatCurrency(viewMode === "monthly" ? result.specialAllowance / 12 : result.specialAllowance)}</span>
                       </div>
-                      <div className="pt-2 border-t flex justify-between items-center font-semibold">
-                        <div className="flex items-center gap-2">
-                          <Info className="h-4 w-4 text-muted-foreground" />
-                          <span>Gross Salary</span>
+                      <div className="pt-2 border-t flex justify-between items-center gap-2 font-semibold" style={{ width: '100%', boxSizing: 'border-box' }}>
+                        <div className="flex items-center gap-2 min-w-0 flex-1" style={{ minWidth: 0, overflow: 'hidden' }}>
+                          <Info className="h-4 w-4 text-muted-foreground flex-shrink-0" style={{ flexShrink: 0 }} />
+                          <span className="text-xs sm:text-sm truncate" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Gross Salary</span>
                         </div>
-                        <span>{formatCurrency(viewMode === "monthly" ? result.grossSalary / 12 : result.grossSalary)}</span>
+                        <span className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0" style={{ flexShrink: 0 }}>{formatCurrency(viewMode === "monthly" ? result.grossSalary / 12 : result.grossSalary)}</span>
                       </div>
                     </div>
 
                     {/* Deductions Section */}
                     <div className="pt-2 border-t space-y-2">
                       <div className="flex items-center gap-2 mb-2">
-                        <Info className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm font-medium">Deductions from Salary</span>
+                        <Info className="h-4 w-4 text-muted-foreground flex-shrink-0" style={{ flexShrink: 0 }} />
+                        <span className="text-xs sm:text-sm font-medium">Deductions from Salary</span>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-purple-400"></div>
-                          <span className="text-sm">EPF Contribution</span>
+                      <div className="flex justify-between items-center gap-2" style={{ width: '100%', boxSizing: 'border-box' }}>
+                        <div className="flex items-center gap-2 min-w-0 flex-1" style={{ minWidth: 0, overflow: 'hidden' }}>
+                          <div className="w-3 h-3 rounded-full bg-purple-400 flex-shrink-0" style={{ flexShrink: 0 }}></div>
+                          <span className="text-xs sm:text-sm truncate" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>EPF Contribution</span>
                         </div>
-                        <span className="font-semibold">{formatCurrency(viewMode === "monthly" ? result.pfEmployee / 12 : result.pfEmployee)}</span>
+                        <span className="font-semibold text-xs sm:text-sm whitespace-nowrap flex-shrink-0" style={{ flexShrink: 0 }}>{formatCurrency(viewMode === "monthly" ? result.pfEmployee / 12 : result.pfEmployee)}</span>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-purple-300"></div>
-                          <span className="text-sm">Tax Payable</span>
+                      <div className="flex justify-between items-center gap-2" style={{ width: '100%', boxSizing: 'border-box' }}>
+                        <div className="flex items-center gap-2 min-w-0 flex-1" style={{ minWidth: 0, overflow: 'hidden' }}>
+                          <div className="w-3 h-3 rounded-full bg-purple-300 flex-shrink-0" style={{ flexShrink: 0 }}></div>
+                          <span className="text-xs sm:text-sm truncate" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Tax Payable</span>
                         </div>
-                        <span className="font-semibold">{formatCurrency(viewMode === "monthly" ? result.incomeTax / 12 : result.incomeTax)}</span>
+                        <span className="font-semibold text-xs sm:text-sm whitespace-nowrap flex-shrink-0" style={{ flexShrink: 0 }}>{formatCurrency(viewMode === "monthly" ? result.incomeTax / 12 : result.incomeTax)}</span>
                       </div>
-                      <div className="pt-2 border-t flex justify-between items-center font-semibold">
-                        <div className="flex items-center gap-2">
-                          <Info className="h-4 w-4 text-muted-foreground" />
-                          <span>Net In-hand Salary</span>
+                      <div className="pt-2 border-t flex justify-between items-center gap-2 font-semibold" style={{ width: '100%', boxSizing: 'border-box' }}>
+                        <div className="flex items-center gap-2 min-w-0 flex-1" style={{ minWidth: 0, overflow: 'hidden' }}>
+                          <Info className="h-4 w-4 text-muted-foreground flex-shrink-0" style={{ flexShrink: 0 }} />
+                          <span className="text-xs sm:text-sm truncate" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Net In-hand Salary</span>
                         </div>
-                        <span className="text-primary text-lg">{formatCurrency(viewMode === "monthly" ? result.netSalary / 12 : result.netSalary)}</span>
+                        <span className="text-primary text-sm sm:text-lg whitespace-nowrap flex-shrink-0" style={{ flexShrink: 0 }}>{formatCurrency(viewMode === "monthly" ? result.netSalary / 12 : result.netSalary)}</span>
                       </div>
                     </div>
                   </CardContent>
@@ -816,15 +840,15 @@ export default function InHandSalaryCalculator() {
 
                 {/* Collapsible Sections - ET Money Style */}
                 {/* HRA and Rent Section */}
-                <Card>
-                  <CardHeader className="cursor-pointer" onClick={() => setHraExpanded(!hraExpanded)}>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">HRA and Rent</CardTitle>
-                      <span className="text-muted-foreground">{hraExpanded ? "−" : "+"}</span>
+                <Card className="w-full max-w-full overflow-hidden" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
+                  <CardHeader className="cursor-pointer" onClick={() => setHraExpanded(!hraExpanded)} style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+                    <div className="flex items-center justify-between" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+                      <CardTitle className="text-base" style={{ minWidth: 0, flex: '1 1 auto', overflow: 'hidden' }}>HRA and Rent</CardTitle>
+                      <span className="text-muted-foreground flex-shrink-0" style={{ flexShrink: 0 }}>{hraExpanded ? "−" : "+"}</span>
                     </div>
                   </CardHeader>
                   {hraExpanded && (
-                    <CardContent>
+                    <CardContent style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
                       <div className="space-y-4">
                         <div className="space-y-2">
                           <Label>City type</Label>
@@ -875,7 +899,7 @@ export default function InHandSalaryCalculator() {
                 </Card>
 
                 {/* Gratuity Section */}
-                <Card>
+                <Card className="w-full max-w-full overflow-hidden" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
                   <CardHeader className="cursor-pointer" onClick={() => setEpfExpanded(!epfExpanded)}>
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-base">Gratuity</CardTitle>
@@ -901,15 +925,15 @@ export default function InHandSalaryCalculator() {
                 </Card>
 
                 {/* Investments Section */}
-                <Card>
-                  <CardHeader className="cursor-pointer" onClick={() => setInvestmentsExpanded(!investmentsExpanded)}>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">Investments</CardTitle>
-                      <span className="text-muted-foreground">{investmentsExpanded ? "−" : "+"}</span>
+                <Card className="w-full max-w-full overflow-hidden" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
+                  <CardHeader className="cursor-pointer" onClick={() => setInvestmentsExpanded(!investmentsExpanded)} style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+                    <div className="flex items-center justify-between" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+                      <CardTitle className="text-base" style={{ minWidth: 0, flex: '1 1 auto', overflow: 'hidden' }}>Investments</CardTitle>
+                      <span className="text-muted-foreground flex-shrink-0" style={{ flexShrink: 0 }}>{investmentsExpanded ? "−" : "+"}</span>
                     </div>
                   </CardHeader>
                   {investmentsExpanded && (
-                    <CardContent>
+                    <CardContent style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <Label>Yearly investment</Label>
@@ -939,14 +963,14 @@ export default function InHandSalaryCalculator() {
 
                 {/* Tax Savings Message */}
                 {result.taxSavings > 0 && (
-                  <Card className="bg-primary/5 border-primary/20">
-                    <CardContent className="pt-6">
-                      <div className="flex items-start gap-3">
-                        <Lightbulb className="h-5 w-5 text-primary mt-0.5" />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <CheckCircle2 className="h-4 w-4 text-success" />
-                            <span className="font-semibold">You saved {formatCurrency(result.taxSavings)} in tax due to exemptions!</span>
+                  <Card className="bg-primary/5 border-primary/20 w-full max-w-full overflow-hidden" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
+                    <CardContent className="pt-6" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
+                      <div className="flex items-start gap-2 sm:gap-3" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+                        <Lightbulb className="h-4 w-4 sm:h-5 sm:w-5 text-primary mt-0.5 flex-shrink-0" style={{ flexShrink: 0 }} />
+                        <div className="flex-1 min-w-0" style={{ minWidth: 0, overflow: 'hidden' }}>
+                          <div className="flex items-center gap-2 mb-1 flex-wrap" style={{ width: '100%', maxWidth: '100%' }}>
+                            <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" style={{ flexShrink: 0 }} />
+                            <span className="font-semibold text-xs sm:text-sm break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>You saved {formatCurrency(result.taxSavings)} in tax due to exemptions!</span>
                           </div>
                         </div>
                       </div>
@@ -958,7 +982,7 @@ export default function InHandSalaryCalculator() {
 
             {/* How It Works Section - Now appears below results */}
             {result && (
-              <Card className="mt-6">
+              <Card className="mt-6 lg:col-span-2" style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Info className="h-5 w-5" />

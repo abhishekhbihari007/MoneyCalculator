@@ -26,13 +26,9 @@ const nextConfig = {
   // Experimental features for better performance
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons', 'three'],
-    // Enable partial prerendering for better performance
-    ppr: false,
   },
-  // Performance optimizations
-  productionBrowserSourceMaps: false,
-  // Webpack optimizations for Three.js and HMR
-  webpack: (config, { isServer, dev }) => {
+  // Webpack optimizations for Three.js
+  webpack: (config, { isServer }) => {
     if (!isServer) {
       // Optimize Three.js bundle size
       config.resolve.alias = {
@@ -40,15 +36,6 @@ const nextConfig = {
         'three': require.resolve('three'),
       };
     }
-    
-    // Improve HMR in development and fix chunk loading
-    if (dev) {
-      config.watchOptions = {
-        poll: 1000,
-        aggregateTimeout: 300,
-      };
-    }
-    
     return config;
   },
   // Optimize build output
@@ -60,39 +47,6 @@ const nextConfig = {
   },
   eslint: {
     ignoreDuringBuilds: false,
-  },
-  // Disable caching in development for better refresh
-  ...(process.env.NODE_ENV === 'development' && {
-    onDemandEntries: {
-      maxInactiveAge: 25 * 1000,
-      pagesBufferLength: 2,
-    },
-  }),
-  // Headers to prevent caching in development
-  async headers() {
-    if (process.env.NODE_ENV === 'development') {
-      return [
-        {
-          source: '/:path*',
-          headers: [
-            {
-              key: 'Cache-Control',
-              value: 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-            },
-          ],
-        },
-        {
-          source: '/_next/static/:path*',
-          headers: [
-            {
-              key: 'Cache-Control',
-              value: 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-            },
-          ],
-        },
-      ];
-    }
-    return [];
   },
 };
 

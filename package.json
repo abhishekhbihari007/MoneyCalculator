@@ -3,15 +3,13 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "dev": "next dev --turbo",
-    "dev:clean": "rm -rf .next && next dev",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "clean": "rm -rf .next node_modules/.cache"
+    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

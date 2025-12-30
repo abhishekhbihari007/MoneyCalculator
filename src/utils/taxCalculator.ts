@@ -88,7 +88,7 @@ function calculateTaxFromSlabs(income: number, slabs: typeof NEW_REGIME_SLABS): 
 
   for (const slab of slabs) {
     // Skip if income is below this slab's starting point
-    if (income <= slab.from) continue;
+    if (income < slab.from) continue;
 
     // Calculate how much of this slab applies
     const slabStart = slab.from;
@@ -96,25 +96,32 @@ function calculateTaxFromSlabs(income: number, slabs: typeof NEW_REGIME_SLABS): 
     
     // Calculate the taxable amount in this slab
     // Indian tax slabs: "from 300001 to 700000" means income from ₹3,00,001 to ₹7,00,000 (inclusive)
-    // For income ₹5,00,000: taxable = 5,00,000 - 3,00,000 = 2,00,000
+    // The taxable amount is the portion of income that falls within this slab range
+    // For slab 7,00,001-10,00,000: 
+    //   - If income is 10,00,000, taxable = 10,00,000 - 7,00,000 = 3,00,000
+    //   - If income is 15,25,000, taxable = 10,00,000 - 7,00,000 = 3,00,000 (capped at slab end)
+    // For slab 10,00,001-12,00,000:
+    //   - If income is 12,00,000, taxable = 12,00,000 - 10,00,000 = 2,00,000
+    //   - If income is 15,25,000, taxable = 12,00,000 - 10,00,000 = 2,00,000 (capped at slab end)
     // Formula: taxable = min(income, slabEnd) - (slabStart - 1)
-    const upperBound = Math.min(income, slabEnd);
-    const lowerBound = slabStart - 1; // "from 300001" means above 300000
-    const taxableInSlab = Math.max(0, upperBound - lowerBound);
+    const incomeInThisSlab = Math.min(income, slabEnd);
+    const previousSlabEnd = slabStart - 1; // "from 300001" means above 300000, so previous slab ends at 300000
+    const taxableInSlab = Math.max(0, incomeInThisSlab - previousSlabEnd);
     
+    // Only process if there's taxable income in this slab and rate > 0
     if (taxableInSlab > 0 && slab.rate > 0) {
-      const slabTax = taxableInSlab * slab.rate;
+      const slabTax = Math.round(taxableInSlab * slab.rate);
       
       breakdown.push({
         from: slabStart,
         to: slabEnd === Infinity ? income : slabEnd,
         rate: slab.rate * 100, // Convert to percentage
-        tax: Math.round(slabTax),
+        tax: slabTax,
       });
       totalTax += slabTax;
       
       // If we've processed all income, stop
-      if (slabEnd >= income || slab.to === Infinity) break;
+      if (incomeInThisSlab >= income || slab.to === Infinity) break;
     }
   }
 

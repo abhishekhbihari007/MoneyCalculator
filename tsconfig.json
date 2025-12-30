@@ -21,7 +21,6 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "skipDefaultLibCheck": true,
     "plugins": [
       {
         "name": "next"
@@ -42,10 +41,6 @@
     ".next/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules",
-    ".next/static",
-    ".next/cache",
-    ".next/server",
-    ".next/routes"
+    "node_modules"
   ]
 }
