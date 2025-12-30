@@ -109,7 +109,7 @@ const HeroSection = () => {
 
           <div className="mt-10 grid grid-cols-3 gap-4 sm:gap-8 animate-fade-up" style={{ animationDelay: "0.7s" }}>
             {[
-              { value: "10", label: "Free Calculators", growth: "All tools available" },
+              { value: "15", label: "Free Calculators", growth: "All tools available" },
               { value: "Zero", label: "Signup Required", growth: "Start instantly" },
               { value: "Instant", label: "Results", growth: "Real-time calculations" },
             ].map((stat, index) => (

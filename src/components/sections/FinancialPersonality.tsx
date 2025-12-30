@@ -129,7 +129,7 @@ const FinancialPersonality = () => {
             className="bg-primary hover:bg-primary/90 text-white px-8 py-6 text-lg font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all"
             asChild
           >
-            <Link href="/calculator/tax-regime">
+            <Link href="/#calculators">
               Explore All Calculators
               <ArrowRight className="ml-2 h-5 w-5" />
             </Link>

@@ -96,7 +96,8 @@ const Footer = () => {
               Your trusted companion for salary calculations, tax planning, and building long-term wealth. Made with care for Indian professionals.
             </p>
             <div className="flex items-center gap-3">
-              {socialLinks.map((social) => (
+              {/* Social media icons hidden but component kept in codebase */}
+              {false && socialLinks.map((social) => (
                 <a
                   key={social.name}
                   href={social.href}
@@ -165,7 +166,7 @@ const Footer = () => {
         <div className="mt-12 border-t border-border pt-8">
           <div className="flex flex-col items-center justify-between gap-4 text-center md:flex-row md:text-left">
             <p className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} ManageYourSalary. All rights reserved.
+              © 2026 ManageYourSalary. All rights reserved.
             </p>
             <p className="max-w-lg text-xs text-muted-foreground/70 leading-relaxed">
               <strong>Important:</strong> The calculators and content provided here are for educational and informational purposes only. They do not constitute professional financial, tax, or legal advice. Always consult with qualified professionals before making financial decisions.
